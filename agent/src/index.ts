@@ -14,6 +14,13 @@ import { TwitterClientInterface } from "@elizaos/client-twitter";
 import { DirectClient } from "@elizaos/client-direct";
 import { PrimusAdapter } from "@elizaos/plugin-primus";
 
+/* REMX ADDITIONS */
+
+import { RemxClientInterface } from "@elizaos/client-remx";
+import { RemxPlugin } from "@elizaos/plugin-remx";
+
+/* END REMX ADDITIONS */
+
 import {
     AgentRuntime,
     CacheManager,
