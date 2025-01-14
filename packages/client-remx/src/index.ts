@@ -25,7 +25,7 @@ export const RemxClientInterface: Client = {
         const remxConfig: RemxConfig =
             await validateRemxConfig(runtime);
 
-        elizaLogger.log("Twitter client started");
+        elizaLogger.log("Remx client started");
 
         const manager = new RemxManager(runtime, remxConfig);
 

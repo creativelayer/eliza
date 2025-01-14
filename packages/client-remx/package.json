@@ -21,7 +21,11 @@
     "dependencies": {
         "@elizaos/core": "workspace:*",
         "glob": "11.0.0",
-        "zod": "3.23.8"
+        "zod": "3.23.8",
+        "@aws-sdk/client-cognito-identity-provider": "^3.723.0",
+        "@coinbase/coinbase-sdk": "^0.13.0",
+        "graphql-request": "^7.1.2",
+        "neo4j-driver": "^5.27.0"
     },
     "devDependencies": {
         "tsup": "8.3.5",

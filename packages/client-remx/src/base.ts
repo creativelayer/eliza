@@ -13,6 +13,8 @@ import {
 import { EventEmitter } from "events";
 import { RemxConfig } from "./environment.ts";
 
+import { login } from "./login.ts";
+import { setState } from "./state.ts";
 export function extractAnswer(text: string): string {
     const startIndex = text.indexOf("Answer: ") + 8;
     const endIndex = text.indexOf("<|endoftext|>", 11);
@@ -64,6 +66,10 @@ export class ClientBase extends EventEmitter {
     }
 
     async login() {
-        console.log("[REMX] Login not implemented");
+        console.log("[REMX] Login initiated");
+        const state = await login(this.remxConfig, {}, this.remxConfig.REMX_WALLET_ADDRESS);
+
+        console.log("[REMX] Login state", state);
+        await setState(state);
     }
 }
