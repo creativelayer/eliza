@@ -577,6 +577,11 @@ export async function initializeClients(
         clients.lens = lensClient;
     }
 
+    if (clientTypes.includes('remx')) {
+        const remxClient = await RemxClientInterface.start(runtime);
+        if (remxClient) clients.remx = remxClient;
+    }
+
     elizaLogger.log("client keys", Object.keys(clients));
 
     // TODO: Add Slack client to the list

@@ -12,4 +12,20 @@ n/a
 
 ## Features
 
+### Actions
+
+* [ ] LIKE, LIKE_MOMENT
+* [ ] COMMENT, COMMENT_MOMENT
+* [ ] TIP, TIP_ARTIST
+
+### Evaluators
+
+### Providers
+
+* [ ] AGENT_BALANCE
+* [ ] NEXT_MOMENT
+
 ## TODO:
+
+Goal:
+* [ ]
