@@ -11,6 +11,9 @@ import {
     elizaLogger,
     stringToUuid,
     ActionTimelineType,
+    composeContext,
+    ModelClass,
+    generateText,
 } from "@elizaos/core";
 import { EventEmitter } from "events";
 
@@ -19,6 +22,7 @@ import { AdminInitiateAuthCommand, AdminRespondToAuthChallengeCommand, CognitoId
 import { Coinbase, Wallet, WalletData, hashMessage } from "@coinbase/coinbase-sdk";
 
 import { RemxConfig } from "./environment.ts";
+import { Moment } from './moment.ts';
 
 export function extractAnswer(text: string): string {
     const startIndex = text.indexOf("Answer: ") + 8;
@@ -42,10 +46,62 @@ mutation LoginByWallet($address: String!, $connectionType: String!) {
 }
 `
 
+const GET_MOMENTS = gql`
+query GetMoments($input: GetMomentsInput!) {
+  getMoments(input: $input) {
+    moments {
+        community {
+            account {
+                id
+                profile {
+                    username
+                    displayName
+                    bio
+                    isFollowing
+                    twitterUsername
+                }
+            }
+        }
+        benefit {
+            id
+            title
+            description
+            metadata
+        }
+        collection {
+            metadata
+            auction {
+                saleDate
+            }
+        }
+    }
+    cursor
+  }
+}
+`
+
+const momentActionTemplate = `# INSTRUCTIONS: Determine actions for {{agentName}} based on:
+{{bio}}
+
+Guidelines:
+- analyze the moment and decide if you want to like it or not based on the moment's content and the creator's bio
+
+Actions (respond only with tags):
+[LIKE] - Resonates with interests (9.9/10)
+[IGNORE] - Not relevant (10/10)
+
+Creator bio:
+{{creatorBio}}
+
+Moment:
+{{currentMoment}}
+
+# Respond with qualifying action tags only.
+Choose any combination of [LIKE] or [IGNORE] that are appropriate. Each action must be on its own line. Your response must only include the chosen actions.`;
+
 const cognitoClient = new CognitoIdentityProviderClient({
     region: 'us-east-1',
 })
-
 
 export class ClientBase extends EventEmitter {
     runtime: IAgentRuntime;
@@ -55,6 +111,7 @@ export class ClientBase extends EventEmitter {
     temperature: number = 0.5;
     wallet: Wallet | null = null;
     profile: RemxProfile | null;
+    private cacheKeyPrefix: string;
 
     callback: (self: ClientBase) => any = null;
 
@@ -77,6 +134,7 @@ export class ClientBase extends EventEmitter {
             throw new Error("Remx wallet address not configured");
         }
 
+        this.cacheKeyPrefix = `remx/${this.remxConfig.REMX_WALLET_ADDRESS}`;
 
         elizaLogger.log("[REMX] Initializing wallet");
 
@@ -88,11 +146,13 @@ export class ClientBase extends EventEmitter {
         // TODO: decide what to do if loginResult is false?
 
         elizaLogger.log("[REMX] Login result", loginResult);
+
+        await this.populateMoments()
     }
 
     async login() {
-        const accessToken = await this.runtime.cacheManager.get(`remx/${this.remxConfig.REMX_WALLET_ADDRESS}/accessToken`);
-        const accessTokenExpiresAt = await this.runtime.cacheManager.get(`remx/${this.remxConfig.REMX_WALLET_ADDRESS}/accessTokenExpiresAt`) as number;
+        const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`);
+        const accessTokenExpiresAt = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessTokenExpiresAt`) as number;
 
         // if we have an access token that is valid for at least 1 minute, we can use it
         if (accessToken && accessTokenExpiresAt > new Date().getTime() - 60 * 1000) {
@@ -146,18 +206,112 @@ export class ClientBase extends EventEmitter {
         elizaLogger.debug("[REMX] Remx expires at", remxExpiresAt);
 
         // TODO: cache manager seems to support expiresAt, so we can use that
-        await this.runtime.cacheManager.set(`remx/${this.remxConfig.REMX_WALLET_ADDRESS}/accessToken`, remxAccessToken)
-        await this.runtime.cacheManager.set(`remx/${this.remxConfig.REMX_WALLET_ADDRESS}/accessTokenExpiresAt`, remxExpiresAt)
+        await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/accessToken`, remxAccessToken)
+        await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/accessTokenExpiresAt`, remxExpiresAt)
     }
 
     /**
      * Populate the moments from the database
      */
     async populateMoments() {
+        // get the last seen moment id from the cache
+        const lastSeenMomentId = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/lastSeenMomentId`) as string | null;
+        const newMoments = await this.loadMomentsSince(lastSeenMomentId)
+
+        // for each moment, create a memory if it doesn't exist
+        for (const momentData of newMoments) {
+
+            const moment = Moment.fromGraphQL(momentData)
+            console.log(`Analyzing moment ${moment.id} by ${moment.creator.displayName}`)
+
+            const memoryId = stringToUuid(moment.id + "-" + this.runtime.agentId)
+            const memory = await this.runtime.messageManager.getMemoryById(stringToUuid(moment.id + "-" + this.runtime.agentId))
+
+            if (!memory) {
+                // TODO: ask an LLM for an opinion on the moment image
+                const roomId = stringToUuid(moment.creator.id + "-" + this.runtime.agentId)
+
+                // create a connection to the creator
+                await this.runtime.ensureConnection(
+                    stringToUuid(moment.creator.id),
+                    roomId,
+                    moment.creator.username,
+                    moment.creator.displayName,
+                    "remx"
+                )
+
+                // this creates a memory associated with the the creator, allowing us to retrieve moments later when
+                // composing a context for that creator
+                await this.runtime.messageManager.createMemory({
+                    id: memoryId,
+                    userId: stringToUuid(moment.creator.id),
+                    content: moment.getMemoryContent(this.remxConfig.REMX_BASE_URL),
+                    agentId: this.runtime.agentId,
+                    roomId,
+                    embedding: getEmbeddingZeroVector(),
+                    createdAt: moment.getCreatedAt(),
+                })
+                // if we want the agent to know about the moment, we can create a second memory with the agentId for the room
+                elizaLogger.log(`Memory ${memoryId} created from moment ${moment.id}`)
+                // for each of the moments, we need to decide if we want to perform an action on it.  Actions can be:
+                // - follow the creator
+                // - like the moment
+                // - comment on the moment
+                // - tip the creator
+                // - do nothing
+                // we can use a LLM to decide what to do'
+
+                const momentState = await this.runtime.composeState({
+                    userId: this.runtime.agentId,
+                    roomId,
+                    agentId: this.runtime.agentId,
+                    content: { text: "", action: "" },
+                }, {
+                    creatorBio: moment.creator.bio,
+                    currentMoment: JSON.stringify(moment.toJSON()),
+                })
+
+                const momentContext = composeContext({
+                    state: momentState,
+                    template: momentActionTemplate,
+                });
+
+                const momentResponse = await generateText({
+                    runtime: this.runtime,
+                    context: momentContext,
+                    modelClass: ModelClass.SMALL,
+                });
+
+                elizaLogger.log(`Action response decided for moment ${moment.id}`, momentResponse)
+            } else {
+                elizaLogger.log(`Memory ${memoryId} already exists, skipping`)
+            }
+        }
+
+        // update the last seen moment id in the cache
+        // await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/lastSeenMomentId`, newMoments[0].id)
+
+
+
+    }
+
+    async loadMomentsSince(momentId: string) {
+        // get the moments since the given moment id
+
+        const result = await this.graphQLRequest(GET_MOMENTS, {
+            input: {
+                lastMoment: momentId,
+                filter: 'all',
+                limit: 100,
+            }
+        })
+
+        const moments = result.getMoments.moments
+        return moments
     }
 
     async graphQLRequest(query: string, variables: Record<string, any>): Promise<any> {
-        const accessToken = await this.runtime.cacheManager.get(`remx/${this.remxConfig.REMX_WALLET_ADDRESS}/accessToken`) as string|null;
+        const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null;
         const client = this.getGraphQLClient(accessToken);
         return client.request(query, variables);
     }
