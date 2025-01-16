@@ -1,4 +1,5 @@
 import { Content, Memory } from "@elizaos/core"
+import { RemxConfig } from "./environment"
 
 export interface Creator {
     id: string
@@ -27,6 +28,7 @@ export class Moment {
     public creator: Creator
     public saleDate: Date | null
     public assetFile: string | null
+    public tags: string[]
 
     constructor() {
         this.id = ''
@@ -43,14 +45,15 @@ export class Moment {
         }
         this.saleDate = null
         this.assetFile = null
+        this.tags = []
     }
 
-    static fromGraphQL(momentData: any): Moment {
+    static fromGraphQL(config: RemxConfig, momentData: any): Moment {
         const moment = new Moment()
         moment.id = momentData.benefit.id
         moment.title = momentData.benefit.title
         moment.description = momentData.benefit.description
-        moment.url = `${momentData.community.account.profile.username}/${momentData.benefit.id}`
+        moment.url = `${config.REMX_BASE_URL}/${momentData.community.account.profile.username}/${momentData.benefit.id}`
         moment.creator = {
             id: momentData.community.account.id,
             displayName: momentData.community.account.profile.displayName,
@@ -60,7 +63,8 @@ export class Moment {
             twitterUsername: momentData.community.account.profile.twitterUsername || null
         }
         moment.saleDate = momentData.collection.auction.saleDate ? new Date(momentData.collection.auction.saleDate) : null
-        moment.assetFile = momentData.collection.metadata?.assetFile || null
+        moment.assetFile = `${config.REMX_ASSET_URL}/${momentData.collection.metadata?.assetFile}`
+        moment.tags = momentData.benefit.categories || []
         return moment
     }
 

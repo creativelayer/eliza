@@ -1,0 +1,37 @@
+import { gql } from 'graphql-request';
+
+export const GET_MOMENTS = gql`
+query GetMoments($input: GetMomentsInput!) {
+  getMoments(input: $input) {
+    moments {
+        community {
+            account {
+                id
+                profile {
+                    username
+                    displayName
+                    bio
+                    isFollowing
+                    twitterUsername
+                }
+            }
+        }
+        benefit {
+            id
+            title
+            description
+            metadata
+            categories
+        }
+        collection {
+            metadata
+            auction {
+                saleDate
+            }
+        }
+    }
+    cursor
+  }
+}
+
+`

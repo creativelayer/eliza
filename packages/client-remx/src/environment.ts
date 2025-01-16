@@ -19,6 +19,8 @@ export const remxEnvSchema = z.object({
     COINBASE_API_KEY_PRIVATE_KEY: z.string(),
     REMX_ENV: z.string(),
     REMX_BASE_URL: z.string(),
+    REMX_ASSET_URL: z.string(),
+    REMX_PROCESS_INTERVAL: z.number(),
 });
 
 export type RemxConfig = z.infer<typeof remxEnvSchema>;
@@ -73,6 +75,15 @@ export async function validateRemxConfig(
             REMX_BASE_URL:
                 runtime.getSetting("REMX_BASE_URL") ||
                 process.env.REMX_BASE_URL,
+            REMX_PROCESS_INTERVAL:
+                parseInt(
+                    runtime.getSetting("REMX_PROCESS_INTERVAL") ||
+                    process.env.REMX_PROCESS_INTERVAL ||
+                    "5"
+                ),
+            REMX_ASSET_URL:
+                runtime.getSetting("REMX_ASSET_URL") ||
+                process.env.REMX_ASSET_URL,
         };
 
         return remxEnvSchema.parse(remxConfig);
