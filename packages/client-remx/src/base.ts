@@ -41,6 +41,7 @@ import { LOGIN_BY_WALLET } from './graphql/mutations/loginByWallet.ts';
 import { GET_PROFILE } from './graphql/queries/getProfile.ts';
 import { GET_MOMENTS } from './graphql/queries/getMoments.ts';
 import { TOGGLE_REACTION } from './graphql/mutations/likeMoment.ts';
+import { CREATE_COMMENT } from './graphql/mutations/commentMoment.ts';
 
 const momentActionTemplate = `# INSTRUCTIONS: Determine actions for {{agentName}} based on:
 {{bio}}
@@ -267,6 +268,24 @@ export class ClientBase extends EventEmitter {
                     relationId:  momentId,
                     relationType: 'Benefit',
                     reactionType: 'like'
+                }
+            })
+        }
+    }
+
+    async commentMoment(momentId: string, text: string) {
+        // if not dry run, create the comment
+        if (this.config.REMX_DRY_RUN) {
+            elizaLogger.log("[REMX] Dry run, would comment on moment", momentId, text)
+        } else {
+            const result = await this.graphQLRequest(CREATE_COMMENT, {
+                input: {
+                    relationId: momentId,
+                    relationType: 'Benefit',
+                    communityId: '', // TODO: get from drop
+                    accountId: this.config.REMX_ACCOUNT_ID,
+                    content: text,
+                    profileId: this.profile.id,
                 }
             })
         }
