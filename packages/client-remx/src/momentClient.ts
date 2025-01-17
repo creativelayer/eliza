@@ -5,6 +5,8 @@ import { getEmbeddingZeroVector } from "@elizaos/core"
 import { RemxConfig } from "./environment"
 import { Moment } from "./moment"
 import { MOMENT_EVALUATION_TEMPLATE } from "./templates/momentEvaluation"
+import { IRemxClient, IClientProfile } from "./types"
+
 interface IMoment {
     id: string
     content: string
@@ -21,22 +23,6 @@ interface IMomentAction {
 interface IClientConfig {
     DRY_RUN?: boolean
     PROCESS_INTERVAL?: number
-}
-
-interface IClientProfile {
-    username: string
-}
-
-interface IRemxClient {
-    config: RemxConfig
-    profile?: IClientProfile
-    init(): Promise<void>
-    loadMoments(): Promise<Moment[]>
-    likeMoment(momentId: string): Promise<void>
-    commentMoment(momentId: string, text: string, profileId: string): Promise<void>
-    followCreator(creatorId: string): Promise<void>
-    getBalance(): Promise<number>
-    getExchangeRate(): Promise<number>
 }
 
 export class MomentClient {
