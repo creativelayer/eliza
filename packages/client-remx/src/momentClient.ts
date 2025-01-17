@@ -35,6 +35,8 @@ interface IRemxClient {
     likeMoment(momentId: string): Promise<void>
     commentMoment(momentId: string, text: string, profileId: string): Promise<void>
     followCreator(creatorId: string): Promise<void>
+    getBalance(): Promise<number>
+    getExchangeRate(): Promise<number>
 }
 
 export class MomentClient {
@@ -125,7 +127,23 @@ export class MomentClient {
                         await this.client.likeMoment(moment.id)
                     }
                     await this.client.commentMoment(moment.id, action.comment, moment.creator.id)
-                    // maybe tip?
+                    // TODO: tip creator
+                    // 1. do we have enough funds in our balance?
+                    const balance = await this.client.getBalance()
+                    elizaLogger.log("[REMX] Agent balance is", balance)
+                    // how much is needed to tip $1?
+                    const exchangeRate = await this.client.getExchangeRate()
+                    elizaLogger.log("[REMX] Exchange rate is", exchangeRate)
+                    const tipAmount = 1 / exchangeRate
+                    elizaLogger.log("[REMX] Tip amount is", tipAmount)
+
+                    if (balance >= tipAmount * 2) {
+                        // 2. have we tipped this creator in the last 24 hours?
+                        // 3. if not, tip the creator $1
+                    } else {
+                        elizaLogger.log("[REMX] Not enough balance to tip")
+                    }
+
                 }
                 console.log('REMX Moment Action:', action)
             }

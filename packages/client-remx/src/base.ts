@@ -43,6 +43,9 @@ import { GET_MOMENTS } from './graphql/queries/getMoments.ts';
 import { TOGGLE_REACTION } from './graphql/mutations/likeMoment.ts';
 import { CREATE_COMMENT } from './graphql/mutations/commentMoment.ts';
 import { FOLLOW_USER } from './graphql/mutations/followUser.ts';
+import { GET_BALANCES } from './graphql/queries/getBalances.ts';
+import { GET_SUPPORTED_NETWORKS } from './graphql/queries/getSupportedNetworks.ts';
+import { GET_EXCHANGE_PRICES } from './graphql/queries/getExchangeRates.ts';
 
 const momentActionTemplate = `# INSTRUCTIONS: Determine actions for {{agentName}} based on:
 {{bio}}
@@ -78,7 +81,7 @@ export class ClientBase extends EventEmitter {
     wallet: Wallet | null = null;
     profile: RemxProfile | null;
     private cacheKeyPrefix: string;
-
+    chainId: number;
     callback: (self: ClientBase) => any = null;
 
     onReady() {
@@ -174,6 +177,16 @@ export class ClientBase extends EventEmitter {
         await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/accessTokenExpiresAt`, remxExpiresAt)
 
         this.profile = await this.getProfile(account.id)
+        elizaLogger.log("[REMX] Profile", this.profile)
+
+        this.chainId = await this.getChainId()
+        elizaLogger.log("[REMX] Chain ID", this.chainId)
+
+        const balance = await this.getBalance()
+        elizaLogger.log("[REMX] Agent Balance is", balance)
+
+        const exchangeRate = await this.getExchangeRate()
+        elizaLogger.log("[REMX] Agent Exchange Rate is", exchangeRate)
     }
 
     /**
@@ -303,10 +316,54 @@ export class ClientBase extends EventEmitter {
         }
     }
 
+    async getChainId(): Promise<number> {
+        const result = await this.graphQLRequest(GET_SUPPORTED_NETWORKS, {})
+        return result.getSupportedNetworks.defaultChainId
+    }
+
+    async getBalance(): Promise<number> {
+        try {
+            const result = await this.graphQLRequest(GET_BALANCES, {
+                input: {
+                    id: this.profile.id,
+                    chainId: this.chainId,
+                }
+            })
+            return result.getBalances.balances[0].balance
+        } catch (error) {
+            return 0
+        }
+    }
+
+    /**
+     * Get the exchange rate for ETH -> USD for the current chain
+     * @returns the exchange rate for the given chain
+     */
+    async getExchangeRate(): Promise<number> {
+        // use the cacheManager to cache the latest exchange rates for 1 hour
+        const cachedExchangeRates = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/exchangeRate`) as number
+        if (cachedExchangeRates) {
+            return cachedExchangeRates
+        }
+
+        const result = await this.graphQLRequest(GET_EXCHANGE_PRICES, {})
+        await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/exchangeRate`, result.getExchangePrices.eth, {
+            expires: new Date().getTime() + 60 * 60 * 1000
+        })
+        elizaLogger.log("[REMX] New exchange rate is", result.getExchangePrices.eth)
+        return result.getExchangePrices.eth
+    }
+
     async graphQLRequest(query: string, variables: Record<string, any>): Promise<any> {
-        const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null;
-        const client = this.getGraphQLClient(accessToken);
-        return client.request(query, variables);
+        try {
+            const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null;
+            const client = this.getGraphQLClient(accessToken);
+            const response = await client.request(query, variables);
+            return response
+        } catch (error) {
+            elizaLogger.error("[REMX] Error in graphQLRequest", error)
+            throw error
+        }
     }
 
     private getGraphQLClient(accessToken: string | null) {
