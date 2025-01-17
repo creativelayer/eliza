@@ -18,6 +18,7 @@ export interface MomentData {
     creator: Creator
     saleDate: Date | null
     assetFile: string | null
+    assetType: string | null
     reaction: string | null
 }
 
@@ -29,6 +30,7 @@ export class Moment {
     public creator: Creator
     public saleDate: Date | null
     public assetFile: string | null
+    public assetType: string | null
     public tags: string[]
     public reaction: string | null
     constructor() {
@@ -46,6 +48,7 @@ export class Moment {
         }
         this.saleDate = null
         this.assetFile = null
+        this.assetType = null
         this.tags = []
         this.reaction = null
     }
@@ -66,6 +69,7 @@ export class Moment {
         }
         moment.saleDate = momentData.collection.auction.saleDate ? new Date(momentData.collection.auction.saleDate) : null
         moment.assetFile = `${config.REMX_ASSET_URL}/${momentData.collection.metadata?.assetFile}`
+        moment.assetType = momentData.collection.metadata?.assetType || null
         moment.tags = momentData.benefit.categories || []
         moment.reaction = momentData.benefit.reaction || null
         return moment
@@ -80,6 +84,7 @@ export class Moment {
         moment.creator = json.creator
         moment.saleDate = json.saleDate
         moment.assetFile = json.assetFile
+        moment.assetType = json.assetType
         moment.reaction = json.reaction
         return moment
     }
@@ -118,6 +123,7 @@ export class Moment {
             creator: this.creator,
             saleDate: this.saleDate,
             assetFile: this.assetFile,
+            assetType: this.assetType,
             reaction: this.reaction
         }
     }
