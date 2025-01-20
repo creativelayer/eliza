@@ -17,12 +17,13 @@ import {
 } from "@elizaos/core";
 import { EventEmitter } from "events";
 
-import { GraphQLClient, gql } from 'graphql-request'
 import { AdminInitiateAuthCommand, AdminRespondToAuthChallengeCommand, CognitoIdentityProviderClient } from "@aws-sdk/client-cognito-identity-provider";
 import { Coinbase, Wallet, WalletData, hashMessage } from "@coinbase/coinbase-sdk";
 
 import { RemxConfig } from "./environment.ts";
 import { Moment } from './moment.ts';
+import { GraphQLClient, GraphQLConfig } from './graphQLClient'
+import { GraphDBClient, Neo4jAuth } from './graphDBClient'
 
 export function extractAnswer(text: string): string {
     const startIndex = text.indexOf("Answer: ") + 8;
@@ -83,6 +84,8 @@ export class ClientBase extends EventEmitter {
     private cacheKeyPrefix: string;
     chainId: number;
     callback: (self: ClientBase) => any = null;
+    private graphQLClient: GraphQLClient
+    private graphDBClient: GraphDBClient
 
     onReady() {
         throw new Error(
@@ -94,6 +97,8 @@ export class ClientBase extends EventEmitter {
         super();
         this.runtime = runtime;
         this.config = config;
+        this.graphQLClient = new GraphQLClient(this.config as GraphQLConfig)
+        this.graphDBClient = new GraphDBClient(this.config as Neo4jAuth)
     }
 
     async init() {
@@ -354,27 +359,29 @@ export class ClientBase extends EventEmitter {
         return result.getExchangePrices.eth
     }
 
+    async getTipHistory(toAccountId: string): Promise<any> {
+        // use the graphdb client to get the tip history
+        const result = await this.graphDBClient.executeQuery(`
+            MATCH (collector:Account {id: $fromAccountId})-[:FROM]-(tip:TIPS)-[:TO]->(creator:Account {id: $toAccountId})
+            RETURN m
+        `, {
+            fromAccountId: this.profile.id,
+            toAccountId,
+        })
+
+        console.log("Tip history", result)
+
+        return result
+    }
+
     async graphQLRequest(query: string, variables: Record<string, any>): Promise<any> {
         try {
-            const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null;
-            const client = this.getGraphQLClient(accessToken);
-            const response = await client.request(query, variables);
-            return response
+            const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null
+            return await this.graphQLClient.request(query, variables, accessToken)
         } catch (error) {
             elizaLogger.error("[REMX] Error in graphQLRequest", error)
             throw error
         }
-    }
-
-    private getGraphQLClient(accessToken: string | null) {
-        const headers: Record<string, string> = {}
-        if (accessToken) {
-          headers.Authorization = `Bearer ${accessToken}`
-        }
-        const client = new GraphQLClient(this.config.GRAPHQL_URL, {
-          headers
-        })
-        return client
     }
 
     async signMessage(message: string): Promise<string> {
@@ -451,6 +458,20 @@ export class ClientBase extends EventEmitter {
         }).join(''))
         const payload = JSON.parse(jsonPayload)
         return new Date(payload.exp * 1000)
+    }
+
+    async graphDBQuery(query: string, params: Record<string, any> = {}): Promise<any> {
+        try {
+            return await this.graphDBClient.executeQuery(query, params)
+        } catch (error) {
+            elizaLogger.error("[REMX] Error in graphDBQuery", error)
+            throw error
+        }
+    }
+
+    async cleanup(): Promise<void> {
+        // ... existing cleanup code if any ...
+        await this.graphDBClient.close()
     }
 }
 

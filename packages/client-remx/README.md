@@ -9,7 +9,7 @@ TODO:
 - [ ] Filter out moments that have videos (not supported yet)
 - [ ] Add our own ImageService that
       - allows for specifying a different prompt for analyzing the image
-      - supports videos and GIFsas well as images
+      - supports videos and GIFs as well as images
       - see https://cookbook.openai.com/examples/gpt_with_vision_for_video_understanding
       - for videos with audio, we might need to use this: https://platform.openai.com/docs/guides/speech-to-text
         - use ffmpeg to extract the audio from the video
