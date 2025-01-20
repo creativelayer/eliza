@@ -185,13 +185,13 @@ export class ClientBase extends EventEmitter {
         elizaLogger.log("[REMX] Profile", this.profile)
 
         this.chainId = await this.getChainId()
-        elizaLogger.log("[REMX] Chain ID", this.chainId)
+        elizaLogger.debug("[REMX] Chain ID", this.chainId)
 
         const balance = await this.getBalance()
-        elizaLogger.log("[REMX] Agent Balance is", balance)
+        elizaLogger.debug("[REMX] Agent Balance is", balance)
 
         const exchangeRate = await this.getExchangeRate()
-        elizaLogger.log("[REMX] Agent Exchange Rate is", exchangeRate)
+        elizaLogger.debug("[REMX] Agent Exchange Rate is", exchangeRate)
     }
 
     /**
@@ -239,7 +239,9 @@ export class ClientBase extends EventEmitter {
         }
 
         // update the last seen moment id in the cache
-        await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/lastSeenMomentId`, newMoments[0].id)
+        if (newMoments.length > 0) {
+            await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/lastSeenMomentId`, newMoments[0].id)
+        }
         return newMoments
     }
 
@@ -253,6 +255,7 @@ export class ClientBase extends EventEmitter {
                 limit: MOMENTS_BATCH_SIZE,
             }
         })
+
 
         const moments = result.getMoments.moments.map(moment => Moment.fromGraphQL(this.config, moment))
         return moments
