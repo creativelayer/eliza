@@ -85,6 +85,7 @@ export class ClientBase extends EventEmitter {
     callback: (self: ClientBase) => any = null;
     private graphQLClient: GraphQLClient
     private graphDBClient: GraphDBClient
+    private loginInterval: NodeJS.Timeout | null = null;
 
     onReady() {
         throw new Error(
@@ -116,9 +117,14 @@ export class ClientBase extends EventEmitter {
         elizaLogger.log("[REMX] Logging in");
         await this.login();
 
-        // TODO: decide what to do if logging in fails?
+        // Set up periodic login check
+        this.loginInterval = setInterval(() => {
+            this.login().catch(err => {
+                elizaLogger.error("[REMX] Periodic login refresh failed:", err);
+            });
+        }, 5 * 60 * 1000); // 5 minutes
 
-        console.log("Profile", this.profile)
+        console.log("Profile", this.profile);
     }
 
     async login() {
@@ -128,7 +134,7 @@ export class ClientBase extends EventEmitter {
         // if we have an access token that is valid for at least 1 minute, we can use it
         if (accessToken && accessTokenExpiresAt > new Date().getTime() - 60 * 1000) {
             elizaLogger.log("[REMX] Using existing access token");
-            return
+            return;
         }
 
         elizaLogger.debug("[REMX] Logging in");
@@ -137,8 +143,6 @@ export class ClientBase extends EventEmitter {
             connectionType: 'wallet',
         })
         elizaLogger.debug("[REMX] found existing account", account);
-
-        // TODO: handle account not found, maybe create account?
 
         const command = new AdminInitiateAuthCommand({
             UserPoolId: this.config.COGNITO_POOL_ID,
