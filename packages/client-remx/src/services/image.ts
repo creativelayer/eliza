@@ -26,7 +26,7 @@ interface ImageProvider {
     ): Promise<string>;
 }
 
-interface IRemxImageDescriptionService extends IImageDescriptionService {
+export interface IRemxImageDescriptionService extends IImageDescriptionService {
     describeImageWithPrompt(
         text: string,
         imageUrl: string
@@ -83,6 +83,7 @@ class OpenAIImageProvider implements ImageProvider {
     ): Promise<string> {
         const imageUrl = convertToBase64DataUrl(imageData, mimeType);
 
+        console.log('[REMX] describeImageWithPrompt', text)
         const content = [
             { type: "text", text },
             { type: "image_url", image_url: { url: imageUrl } },
@@ -95,7 +96,7 @@ class OpenAIImageProvider implements ImageProvider {
                 Authorization: `Bearer ${this.runtime.getSetting("OPENAI_API_KEY")}`,
             },
             body: JSON.stringify({
-                model: "gpt-4-vision-preview",
+                model: "gpt-4o-mini",
                 messages: [{ role: "user", content }],
                 max_tokens: 500,
             }),
@@ -110,7 +111,7 @@ class OpenAIImageProvider implements ImageProvider {
     }
 }
 
-export class ImageDescriptionService extends Service implements IRemxImageDescriptionService {
+export class RemxImageDescriptionService extends Service implements IRemxImageDescriptionService {
     static serviceType: ServiceType = ServiceType.IMAGE_DESCRIPTION;
     private runtime: IAgentRuntime | null = null;
     private provider: ImageProvider | null = null;
@@ -204,4 +205,4 @@ export class ImageDescriptionService extends Service implements IRemxImageDescri
     }
 }
 
-export default ImageDescriptionService;
+export default RemxImageDescriptionService;

@@ -1,8 +1,8 @@
-import { Client, elizaLogger, IAgentRuntime } from "@elizaos/core";
+import { Client, elizaLogger, IAgentRuntime, ServiceType } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
 import { RemxConfig, validateRemxConfig } from "./environment.ts";
 import { MomentClient } from "./momentClient.ts";
-import { ImageDescriptionService } from "./services/image.ts"
+import { RemxImageDescriptionService } from "./services/image.ts"
 /**
  * A manager that orchestrates all specialized Remx logic
  */
@@ -26,9 +26,11 @@ export const RemxClientInterface: Client = {
 
         elizaLogger.log("Remx client started");
 
-        const imageDescriptionService = new ImageDescriptionService();
+        const imageDescriptionService = new RemxImageDescriptionService();
         await imageDescriptionService.initialize(runtime);
-        runtime.registerService(imageDescriptionService);
+        runtime.services.set(ServiceType.IMAGE_DESCRIPTION, imageDescriptionService);
+        // runtime.services.delete(ServiceType.IMAGE_DESCRIPTION);
+        // runtime.registerService(imageDescriptionService);
 
         const manager = new RemxManager(runtime, config);
 

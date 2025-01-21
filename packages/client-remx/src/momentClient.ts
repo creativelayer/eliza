@@ -4,6 +4,7 @@ import { getEmbeddingZeroVector } from "@elizaos/core"
 import { Moment } from "./moment"
 import { MOMENT_EVALUATION_TEMPLATE } from "./templates/momentEvaluation"
 import { IRemxClient } from "./types"
+import { IRemxImageDescriptionService } from "./services/image"
 
 interface IMoment {
     id: string
@@ -144,7 +145,7 @@ export class MomentClient {
                     }
 
                     // 4. if not, tip the creator $1
-                    const tipResult = await this.client.tipCreator(moment.creator.id, tipAmount)
+                    const tipResult = await this.client.tipCreator(moment.creator.id, 1, tipAmount)
                     elizaLogger.log("[REMX] Tip result", tipResult)
                 }
             }
@@ -202,9 +203,10 @@ export class MomentClient {
         const roomId = stringToUuid(moment.creator.id + "-" + this.runtime.agentId)
 
         // Use the client's image description service directly
-        const imageDescriptionService = this.runtime.getService<IImageDescriptionService>(ServiceType.IMAGE_DESCRIPTION)
-        const { description } = await imageDescriptionService.describeImage(moment.assetFile)
-        console.log(description)
+        const imageDescriptionService = this.runtime.getService<IRemxImageDescriptionService>(ServiceType.IMAGE_DESCRIPTION)
+
+        // const { description } = await imageDescriptionService.describeImage(moment.assetFile)
+        // console.log('[REMX] Description', description)
 
         const momentState = await this.runtime.composeState({
             userId: this.runtime.agentId,
@@ -217,7 +219,6 @@ export class MomentClient {
             title: moment.title,
             description: moment.description,
             tags: moment.tags.join(', '),
-            imageDescription: description,
         })
 
         const momentContext = composeContext({
@@ -225,14 +226,12 @@ export class MomentClient {
             template: MOMENT_EVALUATION_TEMPLATE,
         });
 
-        const momentResponse = await generateText({
-            runtime: this.runtime,
-            context: momentContext,
-            modelClass: ModelClass.SMALL,
-        });
+        console.log('[REMX] Moment Context', momentContext)
+
+        const momentResponse = await imageDescriptionService.describeImageWithPrompt(momentContext, moment.assetFile)
 
         const momentResponseObject = parseJSONObjectFromText(momentResponse) as IMomentAction
-        console.log(momentResponseObject)
+        console.log('[REMX] Moment Response Object', momentResponseObject)
 
         return momentResponseObject
     }
