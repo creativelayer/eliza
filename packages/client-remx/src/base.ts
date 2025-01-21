@@ -24,6 +24,7 @@ import { RemxConfig } from "./environment.ts";
 import { Moment } from './moment.ts';
 import { GraphQLClient, GraphQLConfig } from './graphQLClient'
 import { GraphDBClient, Neo4jAuth } from './graphDBClient'
+import { ImageDescriptionService } from "./services/image.ts";
 
 export function extractAnswer(text: string): string {
     const startIndex = text.indexOf("Answer: ") + 8;
@@ -100,6 +101,9 @@ export class ClientBase extends EventEmitter {
         this.config = config;
         this.graphQLClient = new GraphQLClient(this.config as GraphQLConfig)
         this.graphDBClient = new GraphDBClient(this.config as Neo4jAuth)
+        // Initialize the local image service
+        this.imageDescriptionService = new ImageDescriptionService()
+        this.imageDescriptionService.initialize(runtime)
     }
 
     async init() {

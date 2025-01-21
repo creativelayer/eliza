@@ -1,5 +1,6 @@
 import { RemxConfig } from "./environment"
 import { Moment } from "./moment"
+import { IImageDescriptionService } from "@elizaos/core"
 
 export interface IClientProfile {
     username: string
@@ -8,6 +9,7 @@ export interface IClientProfile {
 export interface IRemxClient {
     config: RemxConfig
     profile?: IClientProfile
+    imageDescriptionService: IImageDescriptionService
     init(): Promise<void>
     loadMoments(): Promise<Moment[]>
     likeMoment(momentId: string): Promise<void>
@@ -16,5 +18,5 @@ export interface IRemxClient {
     getBalance(): Promise<number>
     getExchangeRate(): Promise<number>
     getRecentTips(toAccountId: string): Promise<any>
-    tipCreator(toAccountId: string, amount: number): Promise<void>
+    tipCreator(toAccountId: string, amount: number, value: number): Promise<void>
 }
