@@ -15,4 +15,6 @@ export interface IRemxClient {
     followCreator(creatorId: string): Promise<void>
     getBalance(): Promise<number>
     getExchangeRate(): Promise<number>
+    getRecentTips(toAccountId: string): Promise<any>
+    tipCreator(toAccountId: string, amount: number): Promise<void>
 }

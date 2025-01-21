@@ -107,6 +107,7 @@ export class MomentClient {
 
             for (const moment of moments) {
                 const action = await this.momentAction(moment)
+                elizaLogger.debug('REMX Moment Action:', action)
                 if (action.action === 'LIKE') {
                     if (!moment.creator.isFollowing) {
                         await this.client.followCreator(moment.creator.id)
@@ -114,6 +115,7 @@ export class MomentClient {
                     if (moment.reaction !== 'like') {
                         await this.client.likeMoment(moment.id)
                     }
+                    // TODO: if this is the user's first moment, customize the comment to welcome them
                     await this.client.commentMoment(moment.id, action.comment, moment.creator.id)
                     // TODO: tip creator
                     // 1. do we have enough funds in our balance?
@@ -125,15 +127,33 @@ export class MomentClient {
                     const tipAmount = 1 / exchangeRate
                     elizaLogger.log("[REMX] Tip amount is", tipAmount)
 
-                    if (balance >= tipAmount * 2) {
-                        // 2. have we tipped this creator in the last 24 hours?
-                        // 3. if not, tip the creator $1
-                    } else {
+                    const recentTips = await this.client.getRecentTips(moment.creator.id)
+                    const recentTipsAmount = recentTips.reduce((acc, tip) => acc + tip.amount, 0)
+                    elizaLogger.log(`[REMX] Tipped ${recentTipsAmount} of ${this.client.config.REMX_DAILY_TIP_LIMIT} in the last 24 hours`)
+
+                    // 1. make sure we have enough balance to tip $1
+                    if (balance < tipAmount * 2) {
                         elizaLogger.log("[REMX] Not enough balance to tip")
+                        continue
                     }
 
+                    // 2. check if we have already tipped our limit in the last 24 hours
+                    if (recentTipsAmount >= this.client.config.REMX_DAILY_TIP_LIMIT) {
+                        elizaLogger.log("[REMX] Tip budget used up")
+                        continue
+                    }
+
+                    // 3. have we tipped this creator in the last 24 hours?
+                    const artistTips = recentTips.filter(tip => tip.toAccount === moment.creator.id)
+                    if (artistTips.length > 0) {
+                        elizaLogger.log("[REMX] Already tipped this creator in the last 24 hours")
+                        continue
+                    }
+
+                    // 4. if not, tip the creator $1
+                    const tipResult = await this.client.tipCreator(moment.creator.id, tipAmount)
+                    elizaLogger.log("[REMX] Tip result", tipResult)
                 }
-                console.log('REMX Moment Action:', action)
             }
 
             return results
@@ -178,6 +198,14 @@ export class MomentClient {
     }
 
     private async momentAction(moment: Moment): Promise<IMomentAction> {
+        if (moment.assetType.startsWith("video")) {
+            elizaLogger.log("[REMX] Moment is a video, skipping")
+            return {
+                summary: "",
+                action: "IGNORE",
+                comment: ""
+            }
+        }
         const roomId = stringToUuid(moment.creator.id + "-" + this.runtime.agentId)
 
         const imageDescriptionService = this.runtime.getService<IImageDescriptionService>(ServiceType.IMAGE_DESCRIPTION)

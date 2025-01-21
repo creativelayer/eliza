@@ -5,8 +5,8 @@ TODO:
 - [x] Add a comment to the moment
 - [x] Add a like to the moment
 - [x] Add follow the creator
-- [ ] Add tip creator
-- [ ] Filter out moments that have videos (not supported yet)
+- [x] Add tip creator
+- [x] Filter out moments that have videos (not supported yet)
 - [ ] Add our own ImageService that
       - allows for specifying a different prompt for analyzing the image
       - supports videos and GIFs as well as images

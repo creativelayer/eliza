@@ -47,6 +47,7 @@ import { FOLLOW_USER } from './graphql/mutations/followUser.ts';
 import { GET_BALANCES } from './graphql/queries/getBalances.ts';
 import { GET_SUPPORTED_NETWORKS } from './graphql/queries/getSupportedNetworks.ts';
 import { GET_EXCHANGE_PRICES } from './graphql/queries/getExchangeRates.ts';
+import { TIP_ARTIST } from './graphql/mutations/tipArtist.ts';
 
 const momentActionTemplate = `# INSTRUCTIONS: Determine actions for {{agentName}} based on:
 {{bio}}
@@ -255,7 +256,7 @@ export class ClientBase extends EventEmitter {
                 limit: MOMENTS_BATCH_SIZE,
             }
         })
-
+        elizaLogger.log("[REMX] loadMomentsSince", result)
 
         const moments = result.getMoments.moments.map(moment => Moment.fromGraphQL(this.config, moment))
         return moments
@@ -362,19 +363,45 @@ export class ClientBase extends EventEmitter {
         return result.getExchangePrices.eth
     }
 
-    async getTipHistory(toAccountId: string): Promise<any> {
+    /**
+     * Get tips given in the past 24 hours
+     * @returns the tip history for the past 24 hours
+     */
+    async getRecentTips(): Promise<any> {
         // use the graphdb client to get the tip history
         const result = await this.graphDBClient.executeQuery(`
-            MATCH (collector:Account {id: $fromAccountId})-[:FROM]-(tip:TIPS)-[:TO]->(creator:Account {id: $toAccountId})
-            RETURN m
+           match (user:Account${this.config.REMX_ENV} {id: $fromAccount})-[:FROM]-(tip:Tip)
+           where tip.created > datetime() - duration('P1D')
+           return tip.amount, tip.created order by tip.created desc
         `, {
-            fromAccountId: this.profile.id,
-            toAccountId,
+            fromAccount: this.profile.id,
         })
 
         console.log("Tip history", result)
 
-        return result
+        return result.map(tip => ({
+            amount: tip.get('amount'),
+            created: tip.get('created'),
+        }))
+    }
+
+    async tipCreator(toAccountId: string, amount: number, value: number) {
+        // if not dry run, tip the creator
+        if (this.config.REMX_DRY_RUN) {
+            elizaLogger.log("[REMX] Dry run, would tip creator", toAccountId, amount)
+        } else {
+            const result = await this.graphQLRequest(TIP_ARTIST, {
+                input: {
+                    payerId: this.profile.id,
+                    recipientId: toAccountId,
+                    amount,
+                    value,
+                    chainId: this.chainId,
+                    fundingSource: 'balance'
+                }
+            })
+            elizaLogger.log("[REMX] Tip result", result.tipArtist)
+        }
     }
 
     async graphQLRequest(query: string, variables: Record<string, any>): Promise<any> {
