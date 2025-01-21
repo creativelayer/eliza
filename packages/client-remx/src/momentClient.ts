@@ -139,6 +139,7 @@ export class MomentClient {
 
                     // 3. have we tipped this creator in the last 24 hours?
                     const artistTips = recentTips.filter(tip => tip.toAccount === moment.creator.id)
+                    elizaLogger.log("[REMX] Artist tips", artistTips)
                     if (artistTips.length > 0) {
                         elizaLogger.log("[REMX] Already tipped this creator in the last 24 hours")
                         continue

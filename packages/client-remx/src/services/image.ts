@@ -83,7 +83,8 @@ class OpenAIImageProvider implements ImageProvider {
     ): Promise<string> {
         const imageUrl = convertToBase64DataUrl(imageData, mimeType);
 
-        console.log('[REMX] describeImageWithPrompt', text)
+        elizaLogger.debug('[REMX] describeImageWithPrompt', text)
+
         const content = [
             { type: "text", text },
             { type: "image_url", image_url: { url: imageUrl } },
