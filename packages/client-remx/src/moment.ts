@@ -22,6 +22,12 @@ export interface MomentData {
     reaction: string | null
 }
 
+export interface IMomentContext {
+    liked?: boolean
+    commented?: string
+    tipped?: number
+}
+
 export class Moment {
     public id: string
     public title: string
@@ -100,14 +106,16 @@ export class Moment {
         return Moment.fromJSON(momentData)
     }
 
-    getMemoryContent(baseUrl: string): Content {
-        return {
+    getMemoryContent(baseUrl: string, context: IMomentContext): Content {
+        const content: Content = {
             text: `A Collectible Moment by ${this.creator.displayName} with title ${this.title} and description ${this.description}`,
             url: `${baseUrl}/${this.url}`,
             source: 'remx',
             inReplyTo: undefined,
-            moment: this.toJSON()
+            moment: this.toJSON(),
+            ...context
         }
+        return content
     }
 
     getCreatedAt(): number {
