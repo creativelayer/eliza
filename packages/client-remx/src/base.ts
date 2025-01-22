@@ -117,13 +117,6 @@ export class ClientBase extends EventEmitter {
         elizaLogger.log("[REMX] Logging in");
         await this.login();
 
-        // Set up periodic login check
-        this.loginInterval = setInterval(() => {
-            this.login().catch(err => {
-                elizaLogger.error("[REMX] Periodic login refresh failed:", err);
-            });
-        }, 5 * 60 * 1000); // 5 minutes
-
         console.log("Profile", this.profile);
     }
 
@@ -406,6 +399,7 @@ export class ClientBase extends EventEmitter {
     }
 
     async graphQLRequest(query: string, variables: Record<string, any>): Promise<any> {
+        await this.login();
         try {
             const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null
             return await this.graphQLClient.request(query, variables, accessToken)
