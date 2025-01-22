@@ -9,13 +9,17 @@ When checking a new moment, the client will:
   * add a like to the moment
   * follow the creator
   * tip the creator if certain conditions are met
+    * they are human-verified
     * we have enough balance to tip $1
     * we have not tipped the creator in the last 24 hours
     * we have not tipped the creator more than the daily limit
 
-TODO:
-- [ ] Set up a production environment to run the agent
+### TODO: V0
 - [ ] Avoid commenting on moments that have already been commented on. Perhaps if already liked by us then skip further actions
+- [ ] Only tip human-verified creators
+- [ ] Set up a production environment to run the agent
+
+### TODO: V1
 - [ ] Add a process that checks the balance periodically and if the balance is low, ask for more funds somehow
       - run hourly and check if the balance is sufficient for 100 tips of $1 in the next 24 hours.
       - if not, ask for more funds
@@ -27,6 +31,9 @@ TODO:
     - use ffmpeg to extract the audio from the video
     - use the speech-to-text API to transcribe the audio
     - if its just music (no vocals) - what can we do?
+
+### DONE:
+
 - [x] if the process runs for more than 1 hour our auth token expires and we need to re-authenticate
 - [x] Add a comment to the moment
 - [x] Add a like to the moment
