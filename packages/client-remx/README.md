@@ -15,7 +15,6 @@ When checking a new moment, the client will:
     * we have not tipped the creator more than the daily limit
 
 ### TODO: V0
-- [ ] Avoid commenting on moments that have already been commented on. Perhaps if already liked by us then skip further actions
 - [ ] Only tip human-verified creators
 - [ ] Set up a production environment to run the agent
 
@@ -34,6 +33,7 @@ When checking a new moment, the client will:
 
 ### DONE:
 
+- [x] Avoid commenting on moments that have already been commented on. Perhaps if already liked by us then skip further actions
 - [x] if the process runs for more than 1 hour our auth token expires and we need to re-authenticate
 - [x] Add a comment to the moment
 - [x] Add a like to the moment
