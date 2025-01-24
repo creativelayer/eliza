@@ -8,6 +8,7 @@ export interface Creator {
     bio: string
     isFollowing: boolean
     twitterUsername: string | null
+    verifiedType: string | null
 }
 
 export interface MomentData {
@@ -52,7 +53,8 @@ export class Moment {
             username: '',
             bio: '',
             isFollowing: false,
-            twitterUsername: null
+            twitterUsername: null,
+            verifiedType: null
         }
         this.saleDate = null
         this.assetFile = null
@@ -74,7 +76,8 @@ export class Moment {
             username: momentData.community.account.profile.username,
             bio: momentData.community.account.profile.bio,
             isFollowing: momentData.community.account.profile.isFollowing,
-            twitterUsername: momentData.community.account.profile.twitterUsername || null
+            twitterUsername: momentData.community.account.profile.twitterUsername || null,
+            verifiedType: momentData.community.account.profile.verifiedType || 'unverified'
         }
         moment.saleDate = momentData.collection.auction.saleDate ? new Date(momentData.collection.auction.saleDate) : null
         moment.assetFile = `${config.REMX_ASSET_URL}/${momentData.collection.metadata?.assetFile}`
