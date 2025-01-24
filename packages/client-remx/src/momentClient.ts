@@ -131,21 +131,27 @@ export class MomentClient {
                         const exchangeRate = await this.client.getExchangeRate()
                         const tipAmount = 1 / exchangeRate
 
+                        // this is tips given by the agent to all creators in the past 24 hours
                         const recentTips = await this.client.getRecentTips(moment.creator.id)
+                        // this is the sum of all tips given by the agent to all creators in the past 24 hours
                         const recentTipsAmount = recentTips.reduce((acc, tip) => acc + tip.amount, 0)
-                        elizaLogger.log(`[REMX] Tipped ${recentTipsAmount} of ${this.client.config.REMX_DAILY_TIP_LIMIT} in the last 24 hours`)
 
+                        // this is the minimum balance needed to tip the creator
                         const hasSufficientBalance = balance >= tipAmount * 2
+                        // this is the maximum number of tips allowed in the past 24 hours
                         const underDailyLimit = recentTipsAmount < this.client.config.REMX_DAILY_TIP_LIMIT
+                        // this is to ensure we don't tip the same creator more than once in a 24 hour period
                         const notRecentlyTipped = !recentTips.some(tip => tip.toAccount === moment.creator.id)
 
-                        elizaLogger.log("[REMX] Tip check:", {
-                            creatorId: moment.creator.id,
-                            balance,
-                            tipAmount,
-                            recentTipsAmount,
-                            canTip: hasSufficientBalance && underDailyLimit && notRecentlyTipped
-                        })
+                        elizaLogger.log(`[REMX] Tip check:
+  Creator: ${moment.creator.username} (${moment.creator.id})
+  Agent's Remx  Balance: ${balance} (minimum balance needed is: ${tipAmount * 2})
+  Tips given in last 24 hours: ${recentTipsAmount} (maximum allowed is: ${this.client.config.REMX_DAILY_TIP_LIMIT})
+  Tips given to this creator in the last 24 hours: ${recentTips.filter(tip => tip.toAccount === moment.creator.id).reduce((acc, tip) => acc + tip.amount, 0)}
+  Amount to tip: ${tipAmount}
+  ------------------------------
+  Tip decision: ${hasSufficientBalance && underDailyLimit && notRecentlyTipped ? 'Tip' : 'No tip'}
+`)
 
                         if (hasSufficientBalance && underDailyLimit && notRecentlyTipped) {
                             const tipResult = await this.client.tipCreator(moment.creator.id, 1, tipAmount)
