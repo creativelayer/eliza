@@ -13,10 +13,10 @@
                 "--character",
                 "characters/marvin.character.json"
             ],
-            "runtimeExecutable": "pnpm",
+            "runtimeExecutable": "${env:NVM_DIR}/versions/node/v23.6.0/bin/node",
             "runtimeArgs": [
-                "run",
-                "dev"
+                "--loader",
+                "ts-node/esm"
             ],
             "env": {
                 "AWS_PROFILE": "remx-dev",

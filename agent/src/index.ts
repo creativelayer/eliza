@@ -9,7 +9,6 @@ import { SqliteDatabaseAdapter } from "@elizaos/adapter-sqlite";
 // import { LensAgentClient } from "@elizaos/client-lens";
 // import { SlackClientInterface } from "@elizaos/client-slack";
 // import { TelegramClientInterface } from "@elizaos/client-telegram";
-// import { TwitterClientInterface } from "@elizaos/client-twitter";
 // // import { ReclaimAdapter } from "@elizaos/plugin-reclaim";
 import { DirectClient } from "@elizaos/client-direct";
 // import { PrimusAdapter } from "@elizaos/plugin-primus";
@@ -17,6 +16,7 @@ import { DirectClient } from "@elizaos/client-direct";
 /* REMX ADDITIONS */
 
 import { RemxClientInterface } from "@elizaos/client-remx";
+import { RemxTwitterClientInterface } from "@elizaos/client-remx-twitter";
 // import { RemxPlugin } from "@elizaos/plugin-remx";
 
 /* END REMX ADDITIONS */
@@ -580,6 +580,14 @@ export async function initializeClients(
     if (clientTypes.includes('remx')) {
         const remxClient = await RemxClientInterface.start(runtime);
         if (remxClient) clients.remx = remxClient;
+    }
+    elizaLogger.log("clientTypes", clientTypes);
+    if (clientTypes.includes("remx-twitter")) {
+        const twitterClient = await RemxTwitterClientInterface.start(runtime);
+        if (twitterClient) {
+            clients.twitter = twitterClient;
+            elizaLogger.log("remx-twitter twitterClient", twitterClient);
+        }
     }
 
     elizaLogger.log("client keys", Object.keys(clients));

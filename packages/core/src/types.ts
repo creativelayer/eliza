@@ -650,6 +650,7 @@ export enum Clients {
     SLACK = "slack",
     GITHUB = "github",
     REMX = "remx",
+    REMX_TWITTER = "remx-twitter",
 }
 
 export interface IAgentConfig {
