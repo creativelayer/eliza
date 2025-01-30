@@ -586,7 +586,6 @@ export async function initializeClients(
         const twitterClient = await RemxTwitterClientInterface.start(runtime);
         if (twitterClient) {
             clients.remxtwitter = twitterClient;
-            elizaLogger.log("remx-twitter twitterClient", twitterClient);
         }
     }
 
