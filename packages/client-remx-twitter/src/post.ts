@@ -561,7 +561,7 @@ export class RemxTwitterPostClient {
                 elizaLogger.log("[REMX-TWITTER] Generating tweet image");
                 const assetsPath = this.runtime.getSetting("ASSETS_PATH") || "./assets";
                 const backgroundPath = path.join(assetsPath, "background.png");
-                const fontPath = path.join(assetsPath, "font.otf");
+                const fontPath = path.join(assetsPath, "Spray Letters.ttf");
 
                 elizaLogger.log(`[REMX-TWITTER] Assets path: ${assetsPath}`);
                 elizaLogger.log(`[REMX-TWITTER] Background path: ${backgroundPath}`);
@@ -584,7 +584,7 @@ export class RemxTwitterPostClient {
                     {
                         textColor: '#FF69B4',
                         outputFormat: 'jpeg',
-                        fontFamily: 'Spray Letters',
+                        fontFamily: 'SprayLetters',
                         quality: 90
                     }
                 );

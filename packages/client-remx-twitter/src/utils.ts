@@ -8,6 +8,8 @@ import { Media } from "@elizaos/core";
 import fs from "fs";
 import path from "path";
 import sharp from 'sharp';
+import * as fontkit from 'fontkit';
+import sizeOf from 'image-size';
 
 export const wait = (minTime: number = 1000, maxTime: number = 3000) => {
     const waitTime =
@@ -467,35 +469,66 @@ interface TextOverlayOptions {
   lineHeight?: number;
 }
 
-// Memoized font loader
-const fontCache = new Map<string, string>();
-
-async function getFontDataUri(fontPath: string): Promise<string> {
-  const absoluteFontPath = path.resolve(fontPath);
-
-  // Check cache first
-  if (fontCache.has(absoluteFontPath)) {
-    return fontCache.get(absoluteFontPath)!;
-  }
-
-  // Load and convert font file to base64
-  console.log('Loading font from:', absoluteFontPath);
-  const fontBuffer = await fs.promises.readFile(absoluteFontPath);
-  const fontBase64 = fontBuffer.toString('base64');
-  const fontDataUri = `data:font/opentype;base64,${fontBase64}`;
-
-  // Cache the result
-  fontCache.set(absoluteFontPath, fontDataUri);
-  return fontDataUri;
+interface FontMetadata {
+  path: string;
+  familyName: string;
+  fontName: string;
+  font: any;
 }
 
-function trimToWordLimit(text: string, wordLimit: number = 15): string {
-  const words = text.split(/\s+/);
-  if (words.length <= wordLimit) {
-    return text;
-  }
-  return words.slice(0, wordLimit).join(' ') + '...';
+// Update cache to store font metadata
+const fontCache = new Map<string, FontMetadata>();
+
+async function getFontMetadata(fontPath: string): Promise<FontMetadata> {
+    const absoluteFontPath = path.resolve(fontPath);
+    const fontDir = path.dirname(absoluteFontPath);
+
+    // Check cache first
+    if (fontCache.has(absoluteFontPath)) {
+      return fontCache.get(absoluteFontPath)!;
+    }
+
+    // Load and analyze font file
+    console.log('Loading font from:', absoluteFontPath);
+    const fontBuffer = await fs.promises.readFile(absoluteFontPath);
+    const font = fontkit.create(fontBuffer);
+
+    // Create fonts.conf in the font directory
+    const fontsConfPath = path.join(fontDir, 'fonts.conf');
+    if (!fs.existsSync(fontsConfPath)) {
+      const fontsConf = `<?xml version="1.0"?>
+  <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+  <fontconfig>
+    <dir>${fontDir}</dir>
+    <match target="pattern">
+      <test qual="any" name="family">
+        <string>${font.familyName}</string>
+      </test>
+      <edit name="family" mode="assign" binding="same">
+        <string>${font.familyName}</string>
+      </edit>
+    </match>
+  </fontconfig>`;
+
+      await fs.promises.writeFile(fontsConfPath, fontsConf);
+      process.env.FONTCONFIG_PATH = fontsConfPath;
+
+      console.log('Created fonts.conf at:', fontsConfPath);
+    }
+
+    const metadata = {
+      path: absoluteFontPath,
+      familyName: font.familyName,
+      fontName: font.postscriptName || font.fullName,
+      font,
+      fontDir
+    };
+
+    // Cache the result
+    fontCache.set(absoluteFontPath, metadata);
+    return metadata;
 }
+
 
 export async function createTextOverlay(
   text: string,
@@ -509,7 +542,6 @@ export async function createTextOverlay(
     quality = 90,
     fontSize = 60,
     padding = 40,
-    fontFamily = 'CustomFont',
     lineHeight = 1.5
   } = options;
 
@@ -517,101 +549,65 @@ export async function createTextOverlay(
     // Trim text to 15 words
     const trimmedText = trimToWordLimit(text);
 
-    // Get font data URI from cache or load it
-    const fontDataUri = await getFontDataUri(fontPath);
+    // Get font metadata
+    const fontMeta = await getFontMetadata(fontPath);
 
-    // Get image metadata first
-    const metadata = await sharp(backgroundPath).metadata();
-    const imageWidth = metadata.width || 1080;
-    const imageHeight = metadata.height || 1080;
+    // Get background image dimensions
+    const dimensions = sizeOf(backgroundPath);
+    const imageWidth = dimensions.width || 1080;
+    const imageHeight = dimensions.height || 1080;
 
-    // Calculate middle third dimensions
+    // Calculate text position for middle third
     const middleThirdStart = Math.floor(imageHeight / 3);
     const middleThirdHeight = Math.floor(imageHeight / 3);
 
-    // Calculate actual line height in pixels
-    const lineHeightPx = fontSize * lineHeight;
+    elizaLogger.info('Text overlay options:', {
+      textColor,
+      outputFormat,
+      quality,
+      fontSize,
+      padding,
+      lineHeight
+    });
+    elizaLogger.info('Font metadata:', {
+      path: fontMeta.path,
+      familyName: fontMeta.familyName,
+      fontName: fontMeta.fontName
+    });
 
-    // Split text into lines and calculate total height
-    const lines = trimmedText.split('\n');
-    const totalTextHeight = lines.length * lineHeightPx;
-
-    // Calculate vertical centering within middle third
-    const startY = middleThirdStart + (middleThirdHeight - totalTextHeight) / 2;
-
-    // Escape special characters for XML
-    const escapeXml = (unsafe: string) => {
-      return unsafe.replace(/[<>&'"]/g, (c) => {
-        switch (c) {
-          case '<': return '&lt;';
-          case '>': return '&gt;';
-          case '&': return '&amp;';
-          case '\'': return '&apos;';
-          case '"': return '&quot;';
-          default: return c;
-        }
-      });
+    // Create text overlay options
+    const textOverlay = {
+      text: {
+        text: `<span foreground="${textColor}">${trimmedText}</span>`,
+        // fontFile: path.resolve(fontMeta.path),
+        font: fontMeta.familyName,
+        fontSize,
+        width: imageWidth - (padding * 2),
+        height: middleThirdHeight,
+        align: 'center',
+        rgba: true
+      },
+      top: middleThirdStart,
+      left: padding
     };
 
-    // Create text elements with proper spacing
-    const textLines = lines.map((line, index) => {
-      const yPosition = startY + (lineHeightPx * index);
-      return `<text
-        x="${padding}"
-        y="${yPosition}"
-        class="text"
-        dominant-baseline="hanging">${escapeXml(line)}</text>`;
-    }).join('\n');
-
-    // Create an SVG with the text content
-    const svgText = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="${imageWidth}"
-        height="${imageHeight}"
-        version="1.1">
-        <defs>
-          <style type="text/css">
-            @font-face {
-              font-family: '${fontFamily}';
-              src: url('${fontDataUri}') format('opentype');
-            }
-            .text {
-              font-family: '${fontFamily}', sans-serif;
-              font-size: ${fontSize}px;
-              fill: ${textColor};
-              white-space: pre;
-            }
-          </style>
-        </defs>
-        <!-- Debug guides for middle third -->
-        <rect x="0" y="${middleThirdStart}" width="${imageWidth}" height="${middleThirdHeight}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-        ${textLines}
-      </svg>`;
-
-    // Save SVG file next to the output JPEG
-    const outputDir = path.dirname(backgroundPath);
-    const timestamp = Date.now();
-    const svgPath = path.join(outputDir, `tweet_${timestamp}.svg`);
-    await fs.promises.writeFile(svgPath, svgText);
-
-    // Load and process the background image
-    const image = await sharp(backgroundPath)
+    // Process background and add text in one pipeline
+    const result = await sharp(backgroundPath)
       .resize(imageWidth, imageHeight, {
         fit: 'cover',
         position: 'center'
-      });
-
-    // Composite the SVG text over the background
-    const result = await image
-      .composite([
-        {
-          input: Buffer.from(svgText),
-          top: 0,
-          left: 0,
-        },
-      ])
+      })
+      .composite([{
+        input: textOverlay,
+        blend: 'over'
+      }])
       .toFormat(outputFormat as keyof sharp.FormatEnum, { quality });
+
+    // Save a copy of the image
+    const outputDir = path.dirname(backgroundPath);
+    const timestamp = Date.now();
+    await result.clone()
+      .toFile(path.join(outputDir, `tweet_${timestamp}.${outputFormat}`));
 
     return result.toBuffer();
 
@@ -619,5 +615,13 @@ export async function createTextOverlay(
     console.error('Error creating text overlay:', error);
     throw error;
   }
+}
+
+function trimToWordLimit(text: string, wordLimit: number = 15): string {
+  const words = text.split(/\s+/);
+  if (words.length <= wordLimit) {
+    return text;
+  }
+  return words.slice(0, wordLimit).join(' ') + '...';
 }
 
