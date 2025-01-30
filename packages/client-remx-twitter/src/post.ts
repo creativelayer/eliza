@@ -584,7 +584,7 @@ export class RemxTwitterPostClient {
                     {
                         textColor: '#FF69B4',
                         outputFormat: 'jpeg',
-                        fontFamily: 'SprayLetters',
+                        fontFamily: 'Spray Letters',
                         quality: 90
                     }
                 );
