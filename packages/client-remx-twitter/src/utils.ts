@@ -469,8 +469,38 @@ interface TextOverlayOptions {
   lineHeight?: number;
 }
 
+function createTextOverlayConfig(
+  text: string,
+  imageWidth: number,
+  imageHeight: number,
+  options: TextOverlayOptions,
+  rotation: number = 0
+) {
+  const {
+    textColor,
+    fontSize,
+    fontFamily,
+    padding
+  } = options;
 
+  const middleThirdStart = Math.floor(imageHeight / 3);
+  const middleThirdHeight = Math.floor(imageHeight / 3);
 
+  return {
+    text: {
+      text: `<span foreground="${textColor}">${text}</span>`,
+      font: fontFamily,
+      fontSize,
+      width: imageWidth - (padding * 2),
+      height: middleThirdHeight,
+      align: 'center',
+      rgba: true
+    },
+    top: middleThirdStart,
+    left: padding,
+    rotate: rotation // Add rotation
+  };
+}
 
 export async function createTextOverlay(
   text: string,
@@ -482,58 +512,57 @@ export async function createTextOverlay(
     textColor = '#FF69B4',
     outputFormat = 'jpeg',
     quality = 90,
-    fontSize = 120,
+    fontSize = 168,
     fontFamily = 'Arial',
     padding = 40,
     lineHeight = 1.5
   } = options;
 
   try {
-    // Trim word count
     const trimmedText = trimToWordLimit(text, 10);
-
-    // Get background image dimensions
     const dimensions = sizeOf(backgroundPath);
     const imageWidth = dimensions.width || 1080;
     const imageHeight = dimensions.height || 1080;
 
-    // Calculate text position for middle third
-    const middleThirdStart = Math.floor(imageHeight / 3);
-    const middleThirdHeight = Math.floor(imageHeight / 3);
-
-    elizaLogger.info('Text overlay options:', {
-      textColor,
-      outputFormat,
-      quality,
-      fontSize,
-      padding,
-      lineHeight
-    });
-
-    // Create text overlay options
-    const textOverlay = {
-      text: {
-        text: `<span foreground="${textColor}">${trimmedText}</span>`,
-        font: fontFamily,
+    // Create text overlay config with all options including lineHeight
+    const textOverlay = createTextOverlayConfig(
+      trimmedText,
+      imageWidth,
+      imageHeight,
+      {
+        textColor,
         fontSize,
-        width: imageWidth - (padding * 2),
-        height: middleThirdHeight,
-        align: 'center',
-        rgba: true
-      },
-      top: middleThirdStart,
-      left: padding
-    };
+        fontFamily,
+        padding,
+        lineHeight
+      }
+    );
 
-    // Process background and add text in one pipeline
+    // Create a transparent background with the text overlay
+    const textBuffer = await sharp({
+      create: {
+        width: imageWidth,
+        height: imageHeight,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 }
+      }
+    })
+    .composite([{
+      input: textOverlay,
+      blend: 'over'
+    }])
+    .rotate(15, { background: { r: 0, g: 0, b: 0, alpha: 0 }})
+    .toBuffer();
+
+    // Composite the rotated text onto the background
     const result = await sharp(backgroundPath)
       .resize(imageWidth, imageHeight, {
         fit: 'cover',
         position: 'center'
       })
       .composite([{
-        input: textOverlay,
-        blend: 'over'
+        input: textBuffer,
+        blend: 'over',
       }])
       .toFormat(outputFormat as keyof sharp.FormatEnum, { quality });
 
