@@ -482,15 +482,15 @@ export async function createTextOverlay(
     textColor = '#FF69B4',
     outputFormat = 'jpeg',
     quality = 90,
-    fontSize = 60,
+    fontSize = 120,
     fontFamily = 'Arial',
     padding = 40,
     lineHeight = 1.5
   } = options;
 
   try {
-    // Trim text to 15 words
-    const trimmedText = trimToWordLimit(text);
+    // Trim word count
+    const trimmedText = trimToWordLimit(text, 10);
 
     // Get background image dimensions
     const dimensions = sizeOf(backgroundPath);
@@ -514,7 +514,6 @@ export async function createTextOverlay(
     const textOverlay = {
       text: {
         text: `<span foreground="${textColor}">${trimmedText}</span>`,
-        // fontFile: path.resolve(fontMeta.path),
         font: fontFamily,
         fontSize,
         width: imageWidth - (padding * 2),
