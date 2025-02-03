@@ -580,14 +580,13 @@ export class RemxTwitterPostClient {
                 const imageBuffer = await createTextOverlay(
                     cleanedContent,
                     backgroundPath,
-                    fontPath,
                     {
                         textColor: '#FF69B4',
                         outputFormat: 'jpeg',
                         fontFamily: 'Spray Letters',
                         quality: 90
                     }
-                );
+                )
 
                 // Save image to disk
                 await fs.writeFile(outputPath, imageBuffer);
