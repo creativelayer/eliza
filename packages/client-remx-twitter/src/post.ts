@@ -30,6 +30,7 @@ import { ActionResponse } from "@elizaos/core";
 import { createTextOverlay } from "./utils.ts";
 import path from "path";
 import fs from "fs/promises";
+import fetch from "node-fetch";
 
 const MAX_TIMELINES_TO_FETCH = 15;
 
@@ -455,48 +456,73 @@ export class RemxTwitterPostClient {
         roomId: UUID,
         newTweetContent: string,
         twitterUsername: string,
-        mediaPath?: string
+        media?: {
+            path?: string;
+            buffer?: Buffer;
+            url?: string;
+            mediaType?: string;
+        }
     ) {
         try {
             elizaLogger.log(`Posting new tweet:\n`);
 
-            let result;
             let mediaData: { data: Buffer; mediaType: string }[] | undefined;
 
-            // If media path is provided, prepare the media data
-            if (mediaPath) {
+            // Handle different media input types
+            if (media) {
                 try {
-                    const mediaBuffer = await fs.readFile(mediaPath);
-                    mediaData = [{
-                        data: mediaBuffer,
-                        mediaType: 'image/jpeg'
-                    }];
-                    elizaLogger.log('[REMX-TWITTER] Attaching media to tweet:', mediaPath);
+                    if (media.buffer) {
+                        mediaData = [{
+                            data: media.buffer,
+                            mediaType: media.mediaType || 'image/jpeg'
+                        }];
+                    } else if (media.path) {
+                        const mediaBuffer = await fs.readFile(media.path);
+                        mediaData = [{
+                            data: mediaBuffer,
+                            mediaType: media.mediaType || 'image/jpeg'
+                        }];
+                    } else if (media.url) {
+                        const response = await fetch(media.url, {
+                            headers: {
+                                'Accept': 'image/*'
+                            }
+                        });
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+                        }
+
+                        const contentType = response.headers.get('content-type') || media.mediaType || 'image/jpeg';
+                        const arrayBuffer = await response.arrayBuffer();
+
+                        mediaData = [{
+                            data: Buffer.from(arrayBuffer),
+                            mediaType: contentType
+                        }];
+                        elizaLogger.log('[REMX-TWITTER] Successfully fetched media from URL');
+                    }
+                    elizaLogger.log('[REMX-TWITTER] Attaching media to tweet');
                 } catch (error) {
-                    elizaLogger.error('[REMX-TWITTER] Error reading media file:', error);
-                    // Continue without media if file read fails
+                    elizaLogger.error('[REMX-TWITTER] Error preparing media:', error);
+                    // Continue without media if preparation fails
                 }
             }
 
+            let result;
             if (cleanedContent.length > DEFAULT_MAX_TWEET_LENGTH) {
                 result = await this.handleNoteTweet(client, cleanedContent);
             } else {
-                result = await this.sendStandardTweet(client, cleanedContent, undefined, mediaData);
+                result = await this.sendStandardTweet(
+                    client,
+                    cleanedContent,
+                    undefined,
+                    mediaData
+                );
             }
 
-            const tweet = this.createTweetObject(
-                result,
-                client,
-                twitterUsername
-            );
+            const tweet = this.createTweetObject(result, client, twitterUsername);
 
-            await this.processAndCacheTweet(
-                runtime,
-                client,
-                tweet,
-                roomId,
-                newTweetContent
-            );
+            await this.processAndCacheTweet(runtime, client, tweet, roomId, newTweetContent);
         } catch (error) {
             elizaLogger.error("Error sending tweet:", error);
         }
@@ -622,23 +648,37 @@ export class RemxTwitterPostClient {
                         }
                     );
 
-                    // Save image and attach to tweet
-                    const outputPath = path.join(assetsPath, "generated", `slogan_${Date.now()}.jpg`);
-                    await fs.mkdir(path.dirname(outputPath), { recursive: true });
-                    await fs.writeFile(outputPath, imageBuffer);
+                    // Use the buffer directly instead of saving to file
+                    if (this.isDryRun) {
+                        elizaLogger.info(`Dry run: would have posted tweet with image: ${cleanedContent}`);
+                        return;
+                    }
 
-                    elizaLogger.log(`[REMX-TWITTER] Generated slogan image: ${outputPath}`);
-
-                    // Pass the media path to postTweet
-                    this.postTweet(
-                        this.runtime,
-                        this.client,
-                        cleanedContent,
-                        roomId,
-                        newTweetContent,
-                        this.twitterUsername,
-                        outputPath
-                    );
+                    try {
+                        if (this.approvalRequired) {
+                            elizaLogger.log(`Sending Tweet with Image For Approval:\n ${cleanedContent}`);
+                            await this.sendForApproval(cleanedContent, roomId, newTweetContent);
+                            elizaLogger.log("Tweet sent for approval");
+                            return;
+                        } else {
+                            elizaLogger.log(`Posting new tweet with image:\n ${cleanedContent}`);
+                            await this.postTweet(
+                                this.runtime,
+                                this.client,
+                                cleanedContent,
+                                roomId,
+                                newTweetContent,
+                                this.twitterUsername,
+                                {
+                                    buffer: imageBuffer,
+                                    mediaType: 'image/jpeg'
+                                }
+                            );
+                            return;
+                        }
+                    } catch (error) {
+                        elizaLogger.error("Error sending tweet with image:", error);
+                    }
                 } catch (error) {
                     elizaLogger.error("[REMX-TWITTER] Error generating slogan image:", error);
                     // Continue without image if generation fails
