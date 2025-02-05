@@ -125,13 +125,13 @@ export class ClientBase extends EventEmitter {
         const accessTokenExpiresAt = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessTokenExpiresAt`) as number;
 
         // if we have an access token that is valid for at least 1 minute, we can use it
-        if (accessToken && accessTokenExpiresAt > new Date().getTime() - 60 * 1000) {
+        if (accessToken && accessTokenExpiresAt > new Date().getTime() - 59 * 60 * 1000) {
             elizaLogger.log("[REMX] Using existing access token");
             return;
         }
 
         elizaLogger.debug("[REMX] Logging in");
-        const { loginByWallet: account } = await this.graphQLRequest(LOGIN_BY_WALLET, {
+        const { loginByWallet: account } = await this.graphQLClient.request(LOGIN_BY_WALLET, {
             address: this.config.REMX_WALLET_ADDRESS,
             connectionType: 'wallet',
         })
@@ -399,9 +399,15 @@ export class ClientBase extends EventEmitter {
     }
 
     async graphQLRequest(query: string, variables: Record<string, any>): Promise<any> {
-        await this.login();
+        const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null
+        const accessTokenExpiresAt = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessTokenExpiresAt`) as number;
+
+        // if we don't have an access token, we need to login
+        if (!accessToken || accessTokenExpiresAt < new Date().getTime() - 59 * 60 * 1000) {
+            await this.login();
+        }
+
         try {
-            const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null
             return await this.graphQLClient.request(query, variables, accessToken)
         } catch (error) {
             elizaLogger.error("[REMX] Error in graphQLRequest", error)

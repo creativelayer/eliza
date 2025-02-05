@@ -15,12 +15,11 @@ When checking a new moment, the client will:
 
 TODO:
 - [ ] Set up a production environment to run the agent
-- [ ] if the process runs for more than 1 hour our auth token expires and we need to re-authenticate
+- [ ] Avoid commenting on moments that have already been commented on. Perhaps if already liked by us then skip further actions
 - [ ] Add a process that checks the balance periodically and if the balance is low, ask for more funds somehow
       - run hourly and check if the balance is sufficient for 100 tips of $1 in the next 24 hours.
       - if not, ask for more funds
       - if yes, do nothing
-- [ ] Avoid commenting on moments that have already been commented on. Perhaps if already liked by us then skip further actions
 - [ ] Set up a twitter client for the agent
 - [ ] Add support for videos
     - see https://cookbook.openai.com/examples/gpt_with_vision_for_video_understanding
@@ -28,6 +27,7 @@ TODO:
     - use ffmpeg to extract the audio from the video
     - use the speech-to-text API to transcribe the audio
     - if its just music (no vocals) - what can we do?
+- [x] if the process runs for more than 1 hour our auth token expires and we need to re-authenticate
 - [x] Add a comment to the moment
 - [x] Add a like to the moment
 - [x] Add follow the creator
