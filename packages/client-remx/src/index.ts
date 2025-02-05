@@ -41,7 +41,7 @@ export const RemxClientInterface: Client = {
         await manager.client.init();
 
         // Start the posting loop
-        // await manager.momentClient.start();
+        await manager.momentClient.start();
         await manager.tipClient.start();
 
         return manager;
