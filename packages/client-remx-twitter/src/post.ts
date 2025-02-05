@@ -556,6 +556,49 @@ export class RemxTwitterPostClient {
             // Final cleaning
             cleanedContent = removeQuotes(fixNewLines(cleanedContent));
 
+            // Generate image if configured
+            try {
+                elizaLogger.log("[REMX-TWITTER] Generating tweet image");
+                const assetsPath = this.runtime.getSetting("ASSETS_PATH") || "./assets";
+                const backgroundPath = path.join(assetsPath, "background.png");
+                const fontPath = path.join(assetsPath, "font.otf");
+
+                elizaLogger.log(`[REMX-TWITTER] Assets path: ${assetsPath}`);
+                elizaLogger.log(`[REMX-TWITTER] Background path: ${backgroundPath}`);
+                elizaLogger.log(`[REMX-TWITTER] Font path: ${fontPath}`);
+
+                // Ensure output directory exists
+                const outputDir = path.join(assetsPath, "generated");
+                await fs.mkdir(outputDir, { recursive: true });
+
+                // Generate unique filename based on timestamp
+                const timestamp = Date.now();
+                const outputPath = path.join(outputDir, `tweet_${timestamp}.jpg`);
+
+                elizaLogger.log(`[REMX-TWITTER] Output path: ${outputPath}`);
+                // Create image with text overlay with hardcoded pink color
+                const imageBuffer = await createTextOverlay(
+                    cleanedContent,
+                    backgroundPath,
+                    fontPath,
+                    {
+                        textColor: '#FF69B4',
+                        outputFormat: 'jpeg',
+                        fontFamily: 'Spray Letters',
+                        quality: 90
+                    }
+                );
+
+                // elizaLogger.log(`[REMX-TWITTER] Image buffer: ${imageBuffer}`);
+                // Save image to disk
+                await fs.writeFile(outputPath, imageBuffer);
+                elizaLogger.log(`[REMX-TWITTER] Generated remx tweet image: ${outputPath}`);
+
+            } catch (error) {
+                elizaLogger.error("[REMX-TWITTER] Error generating tweet image:", error);
+                // Continue without image if generation fails
+            }
+
             if (this.isDryRun) {
                 elizaLogger.info(
                     `Dry run: would have posted tweet: ${cleanedContent}`
@@ -589,48 +632,7 @@ export class RemxTwitterPostClient {
             } catch (error) {
                 elizaLogger.error("Error sending tweet:", error);
             }
-            // Generate image if configured
-            try {
-                elizaLogger.log("[REMX-TWITTER] Generating tweet image");
-                const assetsPath = this.runtime.getSetting("ASSETS_PATH") || "./assets";
-                const backgroundPath = path.join(assetsPath, "background.png");
-                const fontPath = path.join(assetsPath, "font.otf");
-
-                elizaLogger.log(`[REMX-TWITTER] Assets path: ${assetsPath}`);
-                elizaLogger.log(`[REMX-TWITTER] Background path: ${backgroundPath}`);
-                elizaLogger.log(`[REMX-TWITTER] Font path: ${fontPath}`);
-
-                // Ensure output directory exists
-                const outputDir = path.join(assetsPath, "generated");
-                await fs.mkdir(outputDir, { recursive: true });
-
-                // Generate unique filename based on timestamp
-                const timestamp = Date.now();
-                const outputPath = path.join(outputDir, `tweet_${timestamp}.jpg`);
-
-                elizaLogger.log(`[REMX-TWITTER] Output path: ${outputPath}`);
-                // Create image with text overlay with hardcoded pink color
-                const imageBuffer = await createTextOverlay(
-                    cleanedContent,
-                    backgroundPath,
-                    fontPath,
-                    {
-                        textColor: '#FF69B4',
-                        outputFormat: 'jpeg',
-                        quality: 90
-                    }
-                );
-
-                // elizaLogger.log(`[REMX-TWITTER] Image buffer: ${imageBuffer}`);
-                // Save image to disk
-                await fs.writeFile(outputPath, imageBuffer);
-                elizaLogger.log(`[REMX-TWITTER] Generated remx tweet image: ${outputPath}`);
-
-            } catch (error) {
-                elizaLogger.error("[REMX-TWITTER] Error generating tweet image:", error);
-                // Continue without image if generation fails
-            }
-        } catch (error) {
+         } catch (error) {
             elizaLogger.error("Error generating new tweet:", error?.message);
         }
     }

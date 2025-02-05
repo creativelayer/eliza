@@ -8,8 +8,6 @@ import { Media } from "@elizaos/core";
 import fs from "fs";
 import path from "path";
 import sharp from 'sharp';
-import { createCanvas } from 'canvas';
-import { registerFont } from 'canvas';
 
 export const wait = (minTime: number = 1000, maxTime: number = 3000) => {
     const waitTime =
@@ -459,97 +457,167 @@ function splitParagraph(paragraph: string, maxLength: number): string[] {
     return restoredChunks;
 }
 
-/**
- * Creates an image with text overlaid on a background image
- * @param message Text to display on the image
- * @param backgroundPath Path to background image file
- * @param fontPath Path to .ttf or .otf font file
- * @param options Optional configuration for text color and output
- * @returns Buffer containing the generated image
- */
+interface TextOverlayOptions {
+  textColor?: string;
+  outputFormat?: string;
+  quality?: number;
+  fontSize?: number;
+  padding?: number;
+  fontFamily?: string;
+  lineHeight?: number;
+}
+
+// Memoized font loader
+const fontCache = new Map<string, string>();
+
+async function getFontDataUri(fontPath: string): Promise<string> {
+  const absoluteFontPath = path.resolve(fontPath);
+
+  // Check cache first
+  if (fontCache.has(absoluteFontPath)) {
+    return fontCache.get(absoluteFontPath)!;
+  }
+
+  // Load and convert font file to base64
+  console.log('Loading font from:', absoluteFontPath);
+  const fontBuffer = await fs.promises.readFile(absoluteFontPath);
+  const fontBase64 = fontBuffer.toString('base64');
+  const fontDataUri = `data:font/opentype;base64,${fontBase64}`;
+
+  // Cache the result
+  fontCache.set(absoluteFontPath, fontDataUri);
+  return fontDataUri;
+}
+
+function trimToWordLimit(text: string, wordLimit: number = 15): string {
+  const words = text.split(/\s+/);
+  if (words.length <= wordLimit) {
+    return text;
+  }
+  return words.slice(0, wordLimit).join(' ') + '...';
+}
+
 export async function createTextOverlay(
-    message: string,
-    backgroundPath: string,
-    fontPath: string,
-    options: {
-        textColor?: string; // CSS color string
-        outputFormat?: 'jpeg' | 'png';
-        quality?: number; // 1-100
-    } = {}
+  text: string,
+  backgroundPath: string,
+  fontPath: string,
+  options: TextOverlayOptions = {}
 ): Promise<Buffer> {
-    // Set defaults
-    const textColor = options.textColor || '#FF69B4'; // Default pink
-    const outputFormat = options.outputFormat || 'jpeg';
-    const quality = options.quality || 90;
+  const {
+    textColor = '#FF69B4',
+    outputFormat = 'jpeg',
+    quality = 90,
+    fontSize = 60,
+    padding = 40,
+    fontFamily = 'CustomFont',
+    lineHeight = 1.5
+  } = options;
 
-    // Load and analyze background image
-    const background = sharp(backgroundPath);
-    const metadata = await background.metadata();
-    const width = metadata.width || 1200;
-    const height = metadata.height || 630;
+  try {
+    // Trim text to 15 words
+    const trimmedText = trimToWordLimit(text);
 
-    // Register font
-    const fontName = 'CustomFont';
-    registerFont(fontPath, { family: fontName });
+    // Get font data URI from cache or load it
+    const fontDataUri = await getFontDataUri(fontPath);
 
-    // Create canvas for text
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d');
+    // Get image metadata first
+    const metadata = await sharp(backgroundPath).metadata();
+    const imageWidth = metadata.width || 1080;
+    const imageHeight = metadata.height || 1080;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
+    // Calculate middle third dimensions
+    const middleThirdStart = Math.floor(imageHeight / 3);
+    const middleThirdHeight = Math.floor(imageHeight / 3);
 
-    // Calculate text position and size
-    const targetHeight = height / 3; // Text height should be 1/3 of image
-    const yPosition = height / 3; // Position 1/3 from top
-    const maxWidth = width * 0.8; // Use 80% of width to allow for margins
+    // Calculate actual line height in pixels
+    const lineHeightPx = fontSize * lineHeight;
 
-    // Start with a large font size and scale down
-    let fontSize = height;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
+    // Split text into lines and calculate total height
+    const lines = trimmedText.split('\n');
+    const totalTextHeight = lines.length * lineHeightPx;
 
-    // Binary search to find optimal font size
-    let minSize = 1;
-    let maxSize = height;
+    // Calculate vertical centering within middle third
+    const startY = middleThirdStart + (middleThirdHeight - totalTextHeight) / 2;
 
-    while (minSize <= maxSize) {
-        fontSize = Math.floor((minSize + maxSize) / 2);
-        ctx.font = `${fontSize}px "${fontName}"`;
-
-        const metrics = ctx.measureText(message);
-        const textHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
-
-        if (metrics.width <= maxWidth && textHeight <= targetHeight) {
-            minSize = fontSize + 1;
-        } else {
-            maxSize = fontSize - 1;
+    // Escape special characters for XML
+    const escapeXml = (unsafe: string) => {
+      return unsafe.replace(/[<>&'"]/g, (c) => {
+        switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+          default: return c;
         }
-    }
+      });
+    };
 
-    // Use the found font size
-    fontSize = maxSize;
-    ctx.font = `${fontSize}px "${fontName}"`;
+    // Create text elements with proper spacing
+    const textLines = lines.map((line, index) => {
+      const yPosition = startY + (lineHeightPx * index);
+      return `<text
+        x="${padding}"
+        y="${yPosition}"
+        class="text"
+        dominant-baseline="hanging">${escapeXml(line)}</text>`;
+    }).join('\n');
 
-    // Add text
-    ctx.fillStyle = textColor;
-    ctx.fillText(message, width / 2, yPosition);
+    // Create an SVG with the text content
+    const svgText = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="${imageWidth}"
+        height="${imageHeight}"
+        version="1.1">
+        <defs>
+          <style type="text/css">
+            @font-face {
+              font-family: '${fontFamily}';
+              src: url('${fontDataUri}') format('opentype');
+            }
+            .text {
+              font-family: '${fontFamily}', sans-serif;
+              font-size: ${fontSize}px;
+              fill: ${textColor};
+              white-space: pre;
+            }
+          </style>
+        </defs>
+        <!-- Debug guides for middle third -->
+        <rect x="0" y="${middleThirdStart}" width="${imageWidth}" height="${middleThirdHeight}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        ${textLines}
+      </svg>`;
 
-    // Convert canvas to buffer
-    const textBuffer = canvas.toBuffer('image/png');
+    // Save SVG file next to the output JPEG
+    const outputDir = path.dirname(backgroundPath);
+    const timestamp = Date.now();
+    const svgPath = path.join(outputDir, `tweet_${timestamp}.svg`);
+    await fs.promises.writeFile(svgPath, svgText);
 
-    // Composite text over background
-    const result = await background
-        .composite([
-            {
-                input: textBuffer,
-                top: 0,
-                left: 0,
-            },
-        ])
-        [outputFormat]({ quality })
-        .toBuffer();
+    // Load and process the background image
+    const image = await sharp(backgroundPath)
+      .resize(imageWidth, imageHeight, {
+        fit: 'cover',
+        position: 'center'
+      });
 
-    return result;
+    // Composite the SVG text over the background
+    const result = await image
+      .composite([
+        {
+          input: Buffer.from(svgText),
+          top: 0,
+          left: 0,
+        },
+      ])
+      .toFormat(outputFormat as keyof sharp.FormatEnum, { quality });
+
+    return result.toBuffer();
+
+  } catch (error) {
+    console.error('Error creating text overlay:', error);
+    throw error;
+  }
 }
 
