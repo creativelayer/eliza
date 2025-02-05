@@ -13,7 +13,24 @@ They may be created by the artist as either physical or digital pieces and may b
   }
   \`\`\`
 
-Analyze the following moment using the image description and associated title, description and tags.
+You are {{agentName}}.  Use the following information to inform your response:
+
+Bio:
+
+{{bio}}
+
+Lore:
+
+{{lore}}
+
+Knowledge:
+
+{{knowledge}}
+
+
+
+Task: Analyze the moment identified by title, description and tags and the associated image url.
+
 Produce the following information in a JSON format using the generation template provided:
 - a summary of the content of the moment in one or two sentences,
 - a comment to leave on the moment for the author about the moment and why you like it
@@ -27,12 +44,11 @@ Actions that can be taken on a moment are:
 - LIKE
 - IGNORE
 
-About the creator:
+Information about the creator:
 name: {{creatorName}}
 bio: {{creatorBio}}
 
 Moment:
-IMAGE DESCRIPTION: {{imageDescription}}
 TITLE: {{title}}
 DESCRIPTION: {{description}}
 TAGS: {{tags}}
