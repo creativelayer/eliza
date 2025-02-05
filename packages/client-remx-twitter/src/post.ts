@@ -589,7 +589,6 @@ export class RemxTwitterPostClient {
                     }
                 );
 
-                // elizaLogger.log(`[REMX-TWITTER] Image buffer: ${imageBuffer}`);
                 // Save image to disk
                 await fs.writeFile(outputPath, imageBuffer);
                 elizaLogger.log(`[REMX-TWITTER] Generated remx tweet image: ${outputPath}`);
