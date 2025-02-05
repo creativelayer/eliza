@@ -33,6 +33,12 @@ import fs from "fs/promises";
 
 const MAX_TIMELINES_TO_FETCH = 15;
 
+const characterSloganExamples = [
+    "I'm Marvin, the AI who calculates the probability of failure for every situation. Let me help you with your tasks.",
+    "I'm Marvin, the depressed AI. Let me help you with your tasks.",
+    "I'm a brain the size of a planet, and I'm here to help you with your tasks."
+]
+
 const twitterPostTemplate = `# Areas of Expertise
 {{knowledge}}
 
@@ -63,7 +69,7 @@ const twitterSloganTemplate = `
 
 {{providers}}
 
-{{characterSloganExamples}}
+${characterSloganExamples.map(example => `- ${example}`).join('\n')}
 
 {{postDirections}}
 
@@ -110,6 +116,8 @@ interface PendingTweet {
 }
 
 type PendingTweetApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+const SLOGAN_TWEET_PROBABILITY = 0.9; // 90% chance of slogan tweets
 
 export class RemxTwitterPostClient {
     client: ClientBase;
@@ -420,12 +428,13 @@ export class RemxTwitterPostClient {
     async sendStandardTweet(
         client: ClientBase,
         content: string,
-        tweetId?: string
+        tweetId?: string,
+        mediaData?: { data: Buffer; mediaType: string }[]
     ) {
         try {
             const standardTweetResult = await client.requestQueue.add(
                 async () =>
-                    await client.twitterClient.sendTweet(content, tweetId)
+                    await client.twitterClient.sendTweet(content, tweetId, mediaData)
             );
             const body = await standardTweetResult.json();
             if (!body?.data?.create_tweet?.tweet_results?.result) {
@@ -445,17 +454,34 @@ export class RemxTwitterPostClient {
         cleanedContent: string,
         roomId: UUID,
         newTweetContent: string,
-        twitterUsername: string
+        twitterUsername: string,
+        mediaPath?: string
     ) {
         try {
             elizaLogger.log(`Posting new tweet:\n`);
 
             let result;
+            let mediaData: { data: Buffer; mediaType: string }[] | undefined;
+
+            // If media path is provided, prepare the media data
+            if (mediaPath) {
+                try {
+                    const mediaBuffer = await fs.readFile(mediaPath);
+                    mediaData = [{
+                        data: mediaBuffer,
+                        mediaType: 'image/jpeg'
+                    }];
+                    elizaLogger.log('[REMX-TWITTER] Attaching media to tweet:', mediaPath);
+                } catch (error) {
+                    elizaLogger.error('[REMX-TWITTER] Error reading media file:', error);
+                    // Continue without media if file read fails
+                }
+            }
 
             if (cleanedContent.length > DEFAULT_MAX_TWEET_LENGTH) {
                 result = await this.handleNoteTweet(client, cleanedContent);
             } else {
-                result = await this.sendStandardTweet(client, cleanedContent);
+                result = await this.sendStandardTweet(client, cleanedContent, undefined, mediaData);
             }
 
             const tweet = this.createTweetObject(
@@ -482,8 +508,6 @@ export class RemxTwitterPostClient {
     async generateNewTweet() {
         elizaLogger.log("[REMX-TWITTER] Generating new tweet");
 
-        // tweet decider.  Post slogans once or twice per day.  Post posts otherwise.
-
         try {
             const roomId = stringToUuid(
                 "twitter_generate_room-" + this.client.profile.username
@@ -496,7 +520,6 @@ export class RemxTwitterPostClient {
             );
 
             const topics = this.runtime.character.topics.join(", ");
-
             const state = await this.runtime.composeState(
                 {
                     userId: this.runtime.agentId,
@@ -512,11 +535,14 @@ export class RemxTwitterPostClient {
                 }
             );
 
+            // Randomly decide whether to use slogan template (roughly 10% chance)
+            const useSlogan = Math.random() < SLOGAN_TWEET_PROBABILITY;
+            const template = useSlogan ? twitterSloganTemplate :
+                (this.runtime.character.templates?.twitterPostTemplate || twitterPostTemplate);
+
             const context = composeContext({
                 state,
-                template:
-                    this.runtime.character.templates?.twitterPostTemplate ||
-                    twitterPostTemplate,
+                template
             });
 
             elizaLogger.debug("generate post prompt:\n" + context);
@@ -577,45 +603,46 @@ export class RemxTwitterPostClient {
             // Final cleaning
             cleanedContent = removeQuotes(fixNewLines(cleanedContent));
 
-            // Generate image if configured
-            try {
-                elizaLogger.log("[REMX-TWITTER] Generating tweet image");
-                const assetsPath = this.runtime.getSetting("ASSETS_PATH") || "./assets";
-                const backgroundPath = path.join(assetsPath, "background.png");
-                const fontPath = path.join(assetsPath, "Spray Letters.ttf");
+            // Generate image if it's a slogan tweet
+            if (useSlogan) {
+                try {
+                    elizaLogger.log("[REMX-TWITTER] Generating slogan image");
+                    const assetsPath = this.runtime.getSetting("ASSETS_PATH") || "./assets";
+                    const backgroundPath = path.join(assetsPath, "background.png");
 
-                elizaLogger.log(`[REMX-TWITTER] Assets path: ${assetsPath}`);
-                elizaLogger.log(`[REMX-TWITTER] Background path: ${backgroundPath}`);
-                elizaLogger.log(`[REMX-TWITTER] Font path: ${fontPath}`);
+                    // Generate image with text overlay
+                    const imageBuffer = await createTextOverlay(
+                        cleanedContent,
+                        backgroundPath,
+                        {
+                            textColor: '#FF69B4',
+                            outputFormat: 'jpeg',
+                            fontFamily: 'Spray Letters',
+                            quality: 90
+                        }
+                    );
 
-                // Ensure output directory exists
-                const outputDir = path.join(assetsPath, "generated");
-                await fs.mkdir(outputDir, { recursive: true });
+                    // Save image and attach to tweet
+                    const outputPath = path.join(assetsPath, "generated", `slogan_${Date.now()}.jpg`);
+                    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+                    await fs.writeFile(outputPath, imageBuffer);
 
-                // Generate unique filename based on timestamp
-                const timestamp = Date.now();
-                const outputPath = path.join(outputDir, `tweet_${timestamp}.jpg`);
+                    elizaLogger.log(`[REMX-TWITTER] Generated slogan image: ${outputPath}`);
 
-                elizaLogger.log(`[REMX-TWITTER] Output path: ${outputPath}`);
-                // Create image with text overlay with hardcoded pink color
-                const imageBuffer = await createTextOverlay(
-                    cleanedContent,
-                    backgroundPath,
-                    {
-                        textColor: '#FF69B4',
-                        outputFormat: 'jpeg',
-                        fontFamily: 'Spray Letters',
-                        quality: 90
-                    }
-                )
-
-                // Save image to disk
-                await fs.writeFile(outputPath, imageBuffer);
-                elizaLogger.log(`[REMX-TWITTER] Generated remx tweet image: ${outputPath}`);
-
-            } catch (error) {
-                elizaLogger.error("[REMX-TWITTER] Error generating tweet image:", error);
-                // Continue without image if generation fails
+                    // Pass the media path to postTweet
+                    this.postTweet(
+                        this.runtime,
+                        this.client,
+                        cleanedContent,
+                        roomId,
+                        newTweetContent,
+                        this.twitterUsername,
+                        outputPath
+                    );
+                } catch (error) {
+                    elizaLogger.error("[REMX-TWITTER] Error generating slogan image:", error);
+                    // Continue without image if generation fails
+                }
             }
 
             if (this.isDryRun) {
