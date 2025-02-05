@@ -1,39 +1,38 @@
 import { Client, elizaLogger, IAgentRuntime } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
 import { RemxConfig, validateRemxConfig } from "./environment.ts";
-// import { RemxMomentClient } from "./moment.ts";
+import { MomentClient } from "./momentClient.ts";
 
 /**
  * A manager that orchestrates all specialized Remx logic
  */
 class RemxManager {
     client: ClientBase;
-    // moment: RemxMomentClient;
+    momentClient: MomentClient;
 
-    constructor(runtime: IAgentRuntime, remxConfig: RemxConfig) {
+    constructor(runtime: IAgentRuntime, config: RemxConfig) {
         // Pass remxConfig to the base client
-        this.client = new ClientBase(runtime, remxConfig);
+        this.client = new ClientBase(runtime, config);
 
-        // Posting logic
-        // this.moment = new RemxMomentClient(this.client, runtime);
+        this.momentClient = new MomentClient(this.client, runtime);
 
     }
 }
 
 export const RemxClientInterface: Client = {
     async start(runtime: IAgentRuntime) {
-        const remxConfig: RemxConfig =
+        const config: RemxConfig =
             await validateRemxConfig(runtime);
 
         elizaLogger.log("Remx client started");
 
-        const manager = new RemxManager(runtime, remxConfig);
+        const manager = new RemxManager(runtime, config);
 
         // Initialize login/session
         await manager.client.init();
 
         // Start the posting loop
-        // await manager.moment.start();
+        await manager.momentClient.start();
 
         return manager;
     },
