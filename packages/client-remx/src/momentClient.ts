@@ -96,10 +96,25 @@ export class MomentClient {
                 "remx"
             )
 
-            // Process moments logic will go here
             const results: IMoment[] = []
 
             for (const moment of moments) {
+                // Check if we already have memories for any actions on this moment
+                const likeMemoryId = stringToUuid(`${moment.id}-like`)
+                const commentMemoryId = stringToUuid(`${moment.id}-comment`)
+                const tipMemoryId = stringToUuid(`${moment.id}-tip`)
+
+                const [likeMemory, commentMemory, tipMemory] = await Promise.all([
+                    this.runtime.messageManager.getMemoryById(likeMemoryId),
+                    this.runtime.messageManager.getMemoryById(commentMemoryId),
+                    this.runtime.messageManager.getMemoryById(tipMemoryId)
+                ])
+
+                if (likeMemory || commentMemory || tipMemory) {
+                    elizaLogger.log(`[REMX] Already processed moment ${moment.id}, skipping`)
+                    continue
+                }
+
                 const action = await this.momentAction(moment)
                 elizaLogger.debug('REMX Moment Action:', action)
                 if (action.action === 'LIKE') {
