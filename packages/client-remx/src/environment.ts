@@ -67,6 +67,12 @@ export async function validateRemxConfig(
             GRAPHQL_URL:
                 runtime.getSetting("GRAPHQL_URL") ||
                 process.env.GRAPHQL_URL,
+            IMAGE_SERVER_URL:
+                runtime.getSetting("IMAGE_SERVER_URL") ||
+                process.env.IMAGE_SERVER_URL,
+            REMX_ASSET_BUCKET:
+                runtime.getSetting("REMX_ASSET_BUCKET") ||
+                process.env.REMX_ASSET_BUCKET,
             COINBASE_API_KEY_NAME:
                 runtime.getSetting("COINBASE_API_KEY_NAME") ||
                 process.env.COINBASE_API_KEY_NAME,
