@@ -19,6 +19,18 @@ interface ImageProvider {
         imageData: Buffer,
         mimeType: string
     ): Promise<{ title: string; description: string }>;
+    describeImageWithPrompt(
+        text: string,
+        imageData: Buffer,
+        mimeType: string
+    ): Promise<string>;
+}
+
+interface IRemxImageDescriptionService extends IImageDescriptionService {
+    describeImageWithPrompt(
+        text: string,
+        imageUrl: string
+    ): Promise<string>;
 }
 
 // Utility functions
@@ -60,10 +72,19 @@ class OpenAIImageProvider implements ImageProvider {
         imageData: Buffer,
         mimeType: string
     ): Promise<{ title: string; description: string }> {
+        const result = await this.describeImageWithPrompt(IMAGE_DESCRIPTION_PROMPT, imageData, mimeType);
+        return parseImageResponse(result);
+    }
+
+    async describeImageWithPrompt(
+        text: string,
+        imageData: Buffer,
+        mimeType: string
+    ): Promise<string> {
         const imageUrl = convertToBase64DataUrl(imageData, mimeType);
 
         const content = [
-            { type: "text", text: IMAGE_DESCRIPTION_PROMPT },
+            { type: "text", text },
             { type: "image_url", image_url: { url: imageUrl } },
         ];
 
@@ -85,11 +106,11 @@ class OpenAIImageProvider implements ImageProvider {
         }
 
         const data = await response.json();
-        return parseImageResponse(data.choices[0].message.content);
+        return data.choices[0].message.content;
     }
 }
 
-export class ImageDescriptionService extends Service implements IImageDescriptionService {
+export class ImageDescriptionService extends Service implements IRemxImageDescriptionService {
     static serviceType: ServiceType = ServiceType.IMAGE_DESCRIPTION;
     private runtime: IAgentRuntime | null = null;
     private provider: ImageProvider | null = null;
@@ -159,6 +180,23 @@ export class ImageDescriptionService extends Service implements IImageDescriptio
         try {
             const { data, mimeType } = await this.loadImageData(imageUrl);
             return await this.provider!.describeImage(data, mimeType);
+        } catch (error) {
+            elizaLogger.error("Error in describeImage:", error);
+            throw error;
+        }
+    }
+
+    async describeImageWithPrompt(
+        text: string,
+        imageUrl: string
+    ): Promise<string> {
+        if (!this.initialized) {
+            await this.initializeProvider();
+        }
+
+        try {
+            const { data, mimeType } = await this.loadImageData(imageUrl);
+            return await this.provider!.describeImageWithPrompt(text, data, mimeType);
         } catch (error) {
             elizaLogger.error("Error in describeImage:", error);
             throw error;
