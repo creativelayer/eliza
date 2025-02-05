@@ -1,46 +1,22 @@
 
-Moment Memory:
- id: moment.id + agentId
- userId: moment.accountId
- agentId: agentId
- roomId: specific to the author of the moment, i.e. moment.accountId
- content: {
-    text: moment.title + '\n' +moment.description
-    action: ?
-    source: 'remx'
-    url: share url for the moment
-    attachments: [moment.image ]
-    liked: true | false
-    tipped: 0 +?
-    comments: ""
- }
- createdAt: moment.createdAt
- embedding: getEmbeddingZeroVector(),
 
-Moment Action:
-if we like the moment, then
-* call the like api
-* generate a comment for the moment and call the comment api
-* tip the author of the moment if
-- we have enough funds
-    - provider that injects the current Remx balance for the agent into the context
-- we have not used our daily tip limit
-    - provider that injects the Remx daily tip limit for the agent into the context
-    - provider that injects the amount tipped today for the agent into the context
-- we have not tipped the author yet today
-    - provider that injects the amount tipped to the author today by the agent into the context
-
-
-initialize the last seen moment from cache
-
-every X minutes, load the latest moments from remx up to the last seen moment or everything on sale now?
-- check if the moment is in the agent memory and add it if not
-- cache last seen moment id
-- decide if we want to take action on the moment
-
-
-
-At some later point, we want to take actions on moments that the agent likes by:
-* tweeting about the moment
-* tweeting a summary of several moments that were liked since the previous tweet
-* promote an artist by featuring several of their moments
+TODO:
+- [ ] How do we run this in production?
+- [x] Add a comment to the moment
+- [x] Add a like to the moment
+- [x] Add follow the creator
+- [ ] Add tip creator
+- [ ] Filter out moments that have videos (not supported yet)
+- [ ] Add our own ImageService that
+      - allows for specifying a different prompt for analyzing the image
+      - supports videos and GIFsas well as images
+      - see https://cookbook.openai.com/examples/gpt_with_vision_for_video_understanding
+      - for videos with audio, we might need to use this: https://platform.openai.com/docs/guides/speech-to-text
+        - use ffmpeg to extract the audio from the video
+        - use the speech-to-text API to transcribe the audio
+        - if its just music (no vocals) - what can we do?
+- [ ] if the process runs for more than 1 hour our auth token expires and we need to re-authenticate
+- [ ] Add a process that checks the balance periodically and if the balance is low, ask for more funds somehow
+      - run hourly and check if the balance is sufficient for 100 tips of $1 in the next 24 hours.
+      - if not, ask for more funds
+      - if yes, do nothing
