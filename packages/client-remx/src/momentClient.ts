@@ -1,7 +1,6 @@
 import { composeContext, elizaLogger, generateText, IAgentRuntime, ModelClass, ServiceType, UUID, parseJSONObjectFromText } from "@elizaos/core"
 import { stringToUuid } from "@elizaos/core"
 import { getEmbeddingZeroVector } from "@elizaos/core"
-import { RemxConfig } from "./environment"
 import { Moment } from "./moment"
 import { MOMENT_EVALUATION_TEMPLATE } from "./templates/momentEvaluation"
 import { IRemxClient } from "./types"
@@ -17,11 +16,6 @@ interface IMomentAction {
     summary: string
     action: string
     comment: string
-}
-
-interface IClientConfig {
-    DRY_RUN?: boolean
-    PROCESS_INTERVAL?: number
 }
 
 export class MomentClient {
