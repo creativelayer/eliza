@@ -121,16 +121,7 @@ export class ClientBase extends EventEmitter {
     }
 
     async login() {
-        const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`);
-        const accessTokenExpiresAt = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessTokenExpiresAt`) as number;
-
-        // if we have an access token that is valid for at least 1 minute, we can use it
-        if (accessToken && accessTokenExpiresAt > new Date().getTime() - 59 * 60 * 1000) {
-            elizaLogger.log("[REMX] Using existing access token");
-            return;
-        }
-
-        elizaLogger.debug("[REMX] Logging in");
+        elizaLogger.log("[REMX] login()");
         const { loginByWallet: account } = await this.graphQLClient.request(LOGIN_BY_WALLET, {
             address: this.config.REMX_WALLET_ADDRESS,
             connectionType: 'wallet',
@@ -173,12 +164,11 @@ export class ClientBase extends EventEmitter {
         elizaLogger.debug("[REMX] Remx access token", remxAccessToken);
         elizaLogger.debug("[REMX] Remx expires at", remxExpiresAt);
 
-        // TODO: cache manager seems to support expiresAt, so we can use that
-        await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/accessToken`, remxAccessToken)
-        await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/accessTokenExpiresAt`, remxExpiresAt)
+        // cache manager supports expiry, so we can use that to expire the access token 1 minute before it actually expires
+        await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/accessToken`, remxAccessToken, { expires: remxExpiresAt.getTime() - 55 * 60 * 1000})
 
         this.profile = await this.getProfile(account.id)
-        elizaLogger.log("[REMX] Profile", this.profile)
+        elizaLogger.debug("[REMX] Profile", this.profile)
 
         this.chainId = await this.getChainId()
         elizaLogger.debug("[REMX] Chain ID", this.chainId)
@@ -400,10 +390,9 @@ export class ClientBase extends EventEmitter {
 
     async graphQLRequest(query: string, variables: Record<string, any>): Promise<any> {
         const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null
-        const accessTokenExpiresAt = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessTokenExpiresAt`) as number;
 
         // if we don't have an access token, we need to login
-        if (!accessToken || accessTokenExpiresAt < new Date().getTime() - 59 * 60 * 1000) {
+        if (!accessToken) {
             await this.login();
         }
 
