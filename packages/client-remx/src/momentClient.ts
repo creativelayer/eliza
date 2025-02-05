@@ -1,4 +1,4 @@
-import { composeContext, elizaLogger, generateText, IAgentRuntime, ModelClass, ServiceType, UUID, parseJSONObjectFromText, IImageDescriptionService, Content } from "@elizaos/core"
+import { composeContext, elizaLogger, IAgentRuntime, ServiceType, UUID, parseJSONObjectFromText, Content } from "@elizaos/core"
 import { stringToUuid } from "@elizaos/core"
 import { getEmbeddingZeroVector } from "@elizaos/core"
 import { Moment, IMomentContext } from "./moment"
@@ -125,24 +125,35 @@ export class MomentClient {
                     await this.client.commentMoment(moment.id, action.comment, moment.creator.id)
                     memoryContext.commented = action.comment
 
-                    const balance = await this.client.getBalance()
-                    elizaLogger.log("[REMX] Agent balance is", balance)
-                    const exchangeRate = await this.client.getExchangeRate()
-                    elizaLogger.log("[REMX] Exchange rate is", exchangeRate)
-                    const tipAmount = 1 / exchangeRate
-                    elizaLogger.log("[REMX] Tip amount is", tipAmount)
+                    // Only tip if the creator is verified as human
+                    if (moment.creator.verifiedType === 'human') {
+                        const balance = await this.client.getBalance()
+                        const exchangeRate = await this.client.getExchangeRate()
+                        const tipAmount = 1 / exchangeRate
 
-                    const recentTips = await this.client.getRecentTips(moment.creator.id)
-                    const recentTipsAmount = recentTips.reduce((acc, tip) => acc + tip.amount, 0)
-                    elizaLogger.log(`[REMX] Tipped ${recentTipsAmount} of ${this.client.config.REMX_DAILY_TIP_LIMIT} in the last 24 hours`)
+                        const recentTips = await this.client.getRecentTips(moment.creator.id)
+                        const recentTipsAmount = recentTips.reduce((acc, tip) => acc + tip.amount, 0)
+                        elizaLogger.log(`[REMX] Tipped ${recentTipsAmount} of ${this.client.config.REMX_DAILY_TIP_LIMIT} in the last 24 hours`)
 
-                    if (balance >= tipAmount * 2 &&
-                        recentTipsAmount < this.client.config.REMX_DAILY_TIP_LIMIT &&
-                        !recentTips.some(tip => tip.toAccount === moment.creator.id)) {
+                        const hasSufficientBalance = balance >= tipAmount * 2
+                        const underDailyLimit = recentTipsAmount < this.client.config.REMX_DAILY_TIP_LIMIT
+                        const notRecentlyTipped = !recentTips.some(tip => tip.toAccount === moment.creator.id)
 
-                        const tipResult = await this.client.tipCreator(moment.creator.id, 1, tipAmount)
-                        elizaLogger.log("[REMX] Tip result", tipResult)
-                        memoryContext.tipped = tipAmount
+                        elizaLogger.log("[REMX] Tip check:", {
+                            creatorId: moment.creator.id,
+                            balance,
+                            tipAmount,
+                            recentTipsAmount,
+                            canTip: hasSufficientBalance && underDailyLimit && notRecentlyTipped
+                        })
+
+                        if (hasSufficientBalance && underDailyLimit && notRecentlyTipped) {
+                            const tipResult = await this.client.tipCreator(moment.creator.id, 1, tipAmount)
+                            elizaLogger.log("[REMX] Tip result", tipResult)
+                            memoryContext.tipped = tipAmount
+                        }
+                    } else {
+                        elizaLogger.log("[REMX] No tip - creator type:", moment.creator.verifiedType)
                     }
                 }
 
