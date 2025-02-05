@@ -25,6 +25,7 @@ export const remxEnvSchema = z.object({
     REMX_PROCESS_INTERVAL: z.number(),
     REMX_DAILY_TIP_LIMIT: z.number(),
     REMX_SLACK_WEBHOOK_URL: z.string(),
+    REMX_AGENT_ID: z.string(),
 });
 
 export type RemxConfig = z.infer<typeof remxEnvSchema>;
@@ -103,6 +104,9 @@ export async function validateRemxConfig(
             REMX_SLACK_WEBHOOK_URL:
                 runtime.getSetting("REMX_SLACK_WEBHOOK_URL") ||
                 process.env.REMX_SLACK_WEBHOOK_URL,
+            REMX_AGENT_ID:
+                runtime.getSetting("REMX_AGENT_ID") ||
+                process.env.REMX_AGENT_ID,
         };
 
         return remxEnvSchema.parse(remxConfig);
