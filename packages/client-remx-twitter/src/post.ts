@@ -33,8 +33,7 @@ import fs from "fs/promises";
 
 const MAX_TIMELINES_TO_FETCH = 15;
 
-const twitterPostTemplate = `
-# Areas of Expertise
+const twitterPostTemplate = `# Areas of Expertise
 {{knowledge}}
 
 # About {{agentName}} (@{{twitterUserName}}):
@@ -51,7 +50,27 @@ const twitterPostTemplate = `
 # Task: Generate a post in the voice and style and perspective of {{agentName}} @{{twitterUserName}}.
 Write a post that is {{adjective}} about {{topic}} (without mentioning {{topic}} directly), from the perspective of {{agentName}}. Do not add commentary or acknowledge this request, just write the post.
 Your response should be 1, 2, or 3 sentences (choose the length at random).
-Your response should not contain any questions. Brief, concise statements only. The total character count MUST be less than {{maxTweetLength}}. No emojis. Use \\n\\n (double spaces) between statements if there are multiple statements in your response.`;
+Your response should not contain any questions. Brief, concise statements only. The total character count MUST be less than {{maxTweetLength}}. Include emojis. Use \\n\\n (double spaces) between statements if there are multiple statements in your response.  Do not include hashtags. Always mention @remx_xyz at the end of the tweet.`;
+
+const twitterSloganTemplate = `
+# Areas of Expertise
+{{knowledge}}
+
+# About {{agentName}} (@{{twitterUserName}}):
+{{bio}}
+{{lore}}
+{{topics}}
+
+{{providers}}
+
+{{characterSloganExamples}}
+
+{{postDirections}}
+
+# Task: Generate a slog in the voice and style and perspective of {{agentName}} @{{twitterUserName}}.
+Write slogan that is {{adjective}} about {{topic}} (without mentioning {{topic}} directly), from the perspective of {{agentName}}. Do not add commentary or acknowledge this request, just write the slogan.
+Your response should be a one or two sentence statement between 5 and 10 words total,
+Brief, concise statements only. The total character count MUST be less than {{maxTweetLength}}. No emojis or hashtags.`;
 
 export const twitterActionTemplate =
     `
@@ -462,6 +481,8 @@ export class RemxTwitterPostClient {
      */
     async generateNewTweet() {
         elizaLogger.log("[REMX-TWITTER] Generating new tweet");
+
+        // tweet decider.  Post slogans once or twice per day.  Post posts otherwise.
 
         try {
             const roomId = stringToUuid(
