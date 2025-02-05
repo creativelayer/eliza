@@ -33,6 +33,7 @@ interface IRemxClient {
     init(): Promise<void>
     loadMoments(): Promise<Moment[]>
     likeMoment(momentId: string): Promise<void>
+    commentMoment(momentId: string, text: string, profileId: string): Promise<void>
 }
 
 export class MomentClient {
@@ -120,7 +121,7 @@ export class MomentClient {
                     if (moment.reaction !== 'like') {
                         await this.client.likeMoment(moment.id)
                     }
-                    // await this.client.commentMoment(moment.id, action.comment)
+                    await this.client.commentMoment(moment.id, action.comment, moment.creator.id)
                     // maybe tip?
                 }
                 console.log('REMX Moment Action:', action)
