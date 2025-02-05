@@ -1,7 +1,7 @@
-import { composeContext, elizaLogger, generateText, IAgentRuntime, ModelClass, ServiceType, UUID, parseJSONObjectFromText, IImageDescriptionService } from "@elizaos/core"
+import { composeContext, elizaLogger, generateText, IAgentRuntime, ModelClass, ServiceType, UUID, parseJSONObjectFromText, IImageDescriptionService, Content } from "@elizaos/core"
 import { stringToUuid } from "@elizaos/core"
 import { getEmbeddingZeroVector } from "@elizaos/core"
-import { Moment } from "./moment"
+import { Moment, IMomentContext } from "./moment"
 import { MOMENT_EVALUATION_TEMPLATE } from "./templates/momentEvaluation"
 import { IRemxClient } from "./types"
 import { IRemxImageDescriptionService } from "./services/image"
@@ -72,7 +72,7 @@ export class MomentClient {
         })
     }
 
-    async processMoments(): Promise<IMoment[] | null> {
+    async processMoments(): Promise<Moment[] | null> {
         if (this.isProcessing) {
             elizaLogger.log("Already processing moments, skipping")
             return null
@@ -96,41 +96,37 @@ export class MomentClient {
                 "remx"
             )
 
-            const results: IMoment[] = []
+            const results: Moment[] = []
 
             for (const moment of moments) {
-                // Check if we already have memories for any actions on this moment
-                const likeMemoryId = stringToUuid(`${moment.id}-like`)
-                const commentMemoryId = stringToUuid(`${moment.id}-comment`)
-                const tipMemoryId = stringToUuid(`${moment.id}-tip`)
+                // Check if we already have a memory for this moment
+                const memoryId = stringToUuid(`${moment.id}-${this.runtime.agentId}`)
+                const existingMemory = await this.runtime.messageManager.getMemoryById(memoryId)
 
-                const [likeMemory, commentMemory, tipMemory] = await Promise.all([
-                    this.runtime.messageManager.getMemoryById(likeMemoryId),
-                    this.runtime.messageManager.getMemoryById(commentMemoryId),
-                    this.runtime.messageManager.getMemoryById(tipMemoryId)
-                ])
-
-                if (likeMemory || commentMemory || tipMemory) {
+                if (existingMemory) {
                     elizaLogger.log(`[REMX] Already processed moment ${moment.id}, skipping`)
                     continue
                 }
 
                 const action = await this.momentAction(moment)
                 elizaLogger.debug('REMX Moment Action:', action)
+
+                const memoryContext: IMomentContext = {}
+
                 if (action.action === 'LIKE') {
                     if (!moment.creator.isFollowing) {
                         await this.client.followCreator(moment.creator.id)
                     }
                     if (moment.reaction !== 'like') {
                         await this.client.likeMoment(moment.id)
+                        memoryContext.liked = true
                     }
-                    // TODO: if this is the user's first moment, customize the comment to welcome them
+
                     await this.client.commentMoment(moment.id, action.comment, moment.creator.id)
-                    // TODO: tip creator
-                    // 1. do we have enough funds in our balance?
+                    memoryContext.commented = action.comment
+
                     const balance = await this.client.getBalance()
                     elizaLogger.log("[REMX] Agent balance is", balance)
-                    // how much is needed to tip $1?
                     const exchangeRate = await this.client.getExchangeRate()
                     elizaLogger.log("[REMX] Exchange rate is", exchangeRate)
                     const tipAmount = 1 / exchangeRate
@@ -140,30 +136,20 @@ export class MomentClient {
                     const recentTipsAmount = recentTips.reduce((acc, tip) => acc + tip.amount, 0)
                     elizaLogger.log(`[REMX] Tipped ${recentTipsAmount} of ${this.client.config.REMX_DAILY_TIP_LIMIT} in the last 24 hours`)
 
-                    // 1. make sure we have enough balance to tip $1
-                    if (balance < tipAmount * 2) {
-                        elizaLogger.log("[REMX] Not enough balance to tip")
-                        continue
-                    }
+                    if (balance >= tipAmount * 2 &&
+                        recentTipsAmount < this.client.config.REMX_DAILY_TIP_LIMIT &&
+                        !recentTips.some(tip => tip.toAccount === moment.creator.id)) {
 
-                    // 2. check if we have already tipped our limit in the last 24 hours
-                    if (recentTipsAmount >= this.client.config.REMX_DAILY_TIP_LIMIT) {
-                        elizaLogger.log("[REMX] Tip budget used up")
-                        continue
+                        const tipResult = await this.client.tipCreator(moment.creator.id, 1, tipAmount)
+                        elizaLogger.log("[REMX] Tip result", tipResult)
+                        memoryContext.tipped = tipAmount
                     }
-
-                    // 3. have we tipped this creator in the last 24 hours?
-                    const artistTips = recentTips.filter(tip => tip.toAccount === moment.creator.id)
-                    elizaLogger.log("[REMX] Artist tips", artistTips)
-                    if (artistTips.length > 0) {
-                        elizaLogger.log("[REMX] Already tipped this creator in the last 24 hours")
-                        continue
-                    }
-
-                    // 4. if not, tip the creator $1
-                    const tipResult = await this.client.tipCreator(moment.creator.id, 1, tipAmount)
-                    elizaLogger.log("[REMX] Tip result", tipResult)
                 }
+
+                // Create a single memory with the full context
+                const roomId = stringToUuid(moment.creator.id + "-" + this.runtime.agentId)
+                await this.createMemory(roomId, memoryId, moment.getMemoryContent(this.client.config.REMX_BASE_URL, memoryContext))
+                results.push(moment)
             }
 
             return results
@@ -176,30 +162,26 @@ export class MomentClient {
         }
     }
 
-    async createMemory(moment: IMoment, roomId: UUID): Promise<void> {
+    async createMemory(roomId: UUID, id: UUID, content: Content): Promise<void> {
         try {
             // Add these checks before creating memory
             await this.runtime.ensureRoomExists(roomId)
             await this.runtime.ensureParticipantInRoom(this.runtime.agentId, roomId)
 
             if (!this.isDryRun) {
-                // Create the memory
+                // Create the memory with additional context and include agent ID in memory ID
                 await this.runtime.messageManager.createMemory({
-                    id: stringToUuid(moment.id + "-" + this.runtime.agentId),
+                    id,
                     userId: this.runtime.agentId,
-                    content: {
-                        text: moment.content,
-                        source: "remx",
-                        action: moment.action
-                    },
+                    content,
                     agentId: this.runtime.agentId,
                     roomId,
                     embedding: getEmbeddingZeroVector(),
-                    createdAt: moment.timestamp
+                    createdAt: new Date().getTime()
                 })
             }
         } catch (error) {
-            elizaLogger.error(`Error creating memory for moment ${moment.id}:`, error)
+            elizaLogger.error(`Error creating memory for moment with content: ${content}`, error)
         }
     }
 
