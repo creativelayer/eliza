@@ -187,48 +187,14 @@ export class ClientBase extends EventEmitter {
         // get the last seen moment id from the cache
         const lastSeenMomentId = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/lastSeenMomentId`) as string | null;
         const theMoments = await this.loadMomentsSince(lastSeenMomentId)
-        const newMoments = []
 
-        // for each moment, create a memory if it doesn't exist
-        for (const moment of theMoments) {
-
-            const memoryId = stringToUuid(moment.id + "-" + this.runtime.agentId)
-            // if the memory already exists, we don't need to create it
-            if (await this.runtime.messageManager.getMemoryById(memoryId)) {
-                continue
-            }
-            const roomId = stringToUuid(moment.creator.id + "-" + this.runtime.agentId)
-
-            // create a connection to the creator
-            await this.runtime.ensureConnection(
-                stringToUuid(moment.creator.id),
-                roomId,
-                moment.creator.username,
-                moment.creator.displayName,
-                "remx"
-            )
-
-            // this creates a memory associated with the the creator, allowing us to retrieve moments later when
-            // composing a context for that creator
-            await this.runtime.documentsManager.createMemory({
-                id: memoryId,
-                userId: stringToUuid(moment.creator.id),
-                content: moment.getMemoryContent(this.config.REMX_BASE_URL),
-                agentId: this.runtime.agentId,
-                roomId,
-                embedding: getEmbeddingZeroVector(),
-                createdAt: moment.getCreatedAt(),
-            })
-            // if we want the agent to know about the moment, we can create a second memory with the agentId for the room
-            elizaLogger.log(`Memory ${memoryId} created from moment ${moment.id}`)
-            newMoments.push(moment)
-        }
+        elizaLogger.log(`[REMX] loaded ${theMoments.length} moments`)
 
         // update the last seen moment id in the cache
-        if (newMoments.length > 0) {
-            await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/lastSeenMomentId`, newMoments[0].id)
+        if (theMoments.length > 0) {
+            await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/lastSeenMomentId`, theMoments[0].id)
         }
-        return newMoments
+        return theMoments
     }
 
     async loadMomentsSince(momentId: string) {
