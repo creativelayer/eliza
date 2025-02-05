@@ -37,6 +37,7 @@
         "@elizaos/client-slack": "workspace:*",
         "@elizaos/client-alexa": "workspace:*",
         "@elizaos/client-simsai": "workspace:*",
+        "@elizaos/client-remx": "workspace:*",
         "@elizaos/core": "workspace:*",
         "@elizaos/plugin-0g": "workspace:*",
         "@elizaos/plugin-abstract": "workspace:*",

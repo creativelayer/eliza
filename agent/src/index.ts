@@ -872,6 +872,11 @@ export async function initializeClients(
         const simsaiClient = await JeeterClientInterface.start(runtime);
         if (simsaiClient) clients.simsai = simsaiClient;
     }
+    
+    if (clientTypes.includes('remx')) {
+        const remxClient = await RemxClientInterface.start(runtime);
+        if (remxClient) clients.remx = remxClient;
+    }
 
     elizaLogger.log("client keys", Object.keys(clients));
 
