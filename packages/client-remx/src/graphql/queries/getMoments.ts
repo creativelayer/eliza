@@ -22,6 +22,7 @@ query GetMoments($input: GetMomentsInput!) {
             description
             metadata
             categories
+            reaction
         }
         collection {
             metadata

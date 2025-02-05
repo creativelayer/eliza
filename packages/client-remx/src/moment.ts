@@ -18,6 +18,7 @@ export interface MomentData {
     creator: Creator
     saleDate: Date | null
     assetFile: string | null
+    reaction: string | null
 }
 
 export class Moment {
@@ -29,7 +30,7 @@ export class Moment {
     public saleDate: Date | null
     public assetFile: string | null
     public tags: string[]
-
+    public reaction: string | null
     constructor() {
         this.id = ''
         this.title = ''
@@ -46,6 +47,7 @@ export class Moment {
         this.saleDate = null
         this.assetFile = null
         this.tags = []
+        this.reaction = null
     }
 
     static fromGraphQL(config: RemxConfig, momentData: any): Moment {
@@ -65,6 +67,7 @@ export class Moment {
         moment.saleDate = momentData.collection.auction.saleDate ? new Date(momentData.collection.auction.saleDate) : null
         moment.assetFile = `${config.REMX_ASSET_URL}/${momentData.collection.metadata?.assetFile}`
         moment.tags = momentData.benefit.categories || []
+        moment.reaction = momentData.benefit.reaction || null
         return moment
     }
 
@@ -77,6 +80,7 @@ export class Moment {
         moment.creator = json.creator
         moment.saleDate = json.saleDate
         moment.assetFile = json.assetFile
+        moment.reaction = json.reaction
         return moment
     }
 
@@ -113,7 +117,8 @@ export class Moment {
             url: this.url,
             creator: this.creator,
             saleDate: this.saleDate,
-            assetFile: this.assetFile
+            assetFile: this.assetFile,
+            reaction: this.reaction
         }
     }
 }

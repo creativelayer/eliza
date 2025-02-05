@@ -12,6 +12,12 @@ interface IMoment {
     timestamp: number
 }
 
+interface IMomentAction {
+    summary: string
+    action: string
+    comment: string
+}
+
 interface IClientConfig {
     DRY_RUN?: boolean
     PROCESS_INTERVAL?: number
@@ -26,6 +32,7 @@ interface IRemxClient {
     profile?: IClientProfile
     init(): Promise<void>
     loadMoments(): Promise<Moment[]>
+    likeMoment(momentId: string): Promise<void>
 }
 
 export class MomentClient {
@@ -108,6 +115,14 @@ export class MomentClient {
 
             for (const moment of moments) {
                 const action = await this.momentAction(moment)
+                if (action.action === 'LIKE') {
+                    // await this.client.followUser(moment.creator.id)
+                    if (moment.reaction !== 'like') {
+                        await this.client.likeMoment(moment.id)
+                    }
+                    // await this.client.commentMoment(moment.id, action.comment)
+                    // maybe tip?
+                }
                 console.log('REMX Moment Action:', action)
             }
 
@@ -152,7 +167,7 @@ export class MomentClient {
         this.stopProcessing = true
     }
 
-    private async momentAction(moment: Moment): Promise<string> {
+    private async momentAction(moment: Moment): Promise<IMomentAction> {
         const roomId = stringToUuid(moment.creator.id + "-" + this.runtime.agentId)
 
         const imageDescriptionService = this.runtime.getService<IImageDescriptionService>(ServiceType.IMAGE_DESCRIPTION)
@@ -185,9 +200,9 @@ export class MomentClient {
             modelClass: ModelClass.SMALL,
         });
 
-        const momentResponseObject = parseJSONObjectFromText(momentResponse)
+        const momentResponseObject = parseJSONObjectFromText(momentResponse) as IMomentAction
         console.log(momentResponseObject)
 
-        return momentResponse
+        return momentResponseObject
     }
 }

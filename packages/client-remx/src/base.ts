@@ -40,6 +40,7 @@ type RemxProfile = {
 import { LOGIN_BY_WALLET } from './graphql/mutations/loginByWallet.ts';
 import { GET_PROFILE } from './graphql/queries/getProfile.ts';
 import { GET_MOMENTS } from './graphql/queries/getMoments.ts';
+import { TOGGLE_REACTION } from './graphql/mutations/likeMoment.ts';
 
 const momentActionTemplate = `# INSTRUCTIONS: Determine actions for {{agentName}} based on:
 {{bio}}
@@ -254,6 +255,21 @@ export class ClientBase extends EventEmitter {
             verified: result.getProfile.verified,
         }
         return profile
+    }
+
+    async likeMoment(momentId: string) {
+        // if not dry run, toggle the reaction
+        if (this.config.REMX_DRY_RUN) {
+            elizaLogger.log("[REMX] Dry run, would like moment", momentId)
+        } else {
+            const result = await this.graphQLRequest(TOGGLE_REACTION, {
+                input: {
+                    relationId:  momentId,
+                    relationType: 'Benefit',
+                    reactionType: 'like'
+                }
+            })
+        }
     }
 
     async graphQLRequest(query: string, variables: Record<string, any>): Promise<any> {
