@@ -28,6 +28,7 @@ import { dcapPlugin } from "@elizaos/plugin-dcap";
 /* REMX ADDITIONS */
 
 import { RemxClientInterface } from "@elizaos/client-remx";
+import { RemxTwitterClientInterface } from "@elizaos/client-remx-twitter";
 // import { RemxPlugin } from "@elizaos/plugin-remx";
 
 /* END REMX ADDITIONS */
@@ -837,6 +838,14 @@ export async function initializeClients(
     if (clientTypes.includes('remx')) {
         const remxClient = await RemxClientInterface.start(runtime);
         if (remxClient) clients.remx = remxClient;
+    }
+    elizaLogger.log("clientTypes", clientTypes);
+    if (clientTypes.includes("remx-twitter")) {
+        const twitterClient = await RemxTwitterClientInterface.start(runtime);
+        if (twitterClient) {
+            clients.twitter = twitterClient;
+            elizaLogger.log("remx-twitter twitterClient", twitterClient);
+        }
     }
 
     elizaLogger.log("client keys", Object.keys(clients));

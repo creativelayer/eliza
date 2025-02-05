@@ -664,6 +664,7 @@ export enum Clients {
     XMTP = "xmtp",
     DEVA = "deva",
     REMX = "remx",
+    REMX_TWITTER = "remx-twitter",
 }
 
 export interface IAgentConfig {
