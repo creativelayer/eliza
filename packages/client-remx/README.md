@@ -16,9 +16,12 @@ When checking a new moment, the client will:
 
 ### TODO: V0
 - [ ] Only tip human-verified creators
-- [ ] Set up a production environment to run the agent
+- [x] Set up a production environment to run the agent
+      * set up in dev, we just need to duplicate in production later today.
 
 ### TODO: V1
+- [ ] change how we check if we've seen a moment before to include if we've already liked the moment
+      * this should be available in the reaction when loading the moment
 - [ ] Add a process that checks the balance periodically and if the balance is low, ask for more funds somehow
       - run hourly and check if the balance is sufficient for 100 tips of $1 in the next 24 hours.
       - if not, ask for more funds
