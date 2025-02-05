@@ -25,7 +25,8 @@
         "@aws-sdk/client-cognito-identity-provider": "^3.723.0",
         "@coinbase/coinbase-sdk": "^0.13.0",
         "graphql-request": "^7.1.2",
-        "neo4j-driver": "^5.27.0"
+        "neo4j-driver": "^5.27.0",
+        "gif-frames": "0.4.1"
     },
     "devDependencies": {
         "tsup": "8.3.5",
