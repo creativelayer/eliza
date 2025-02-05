@@ -7,8 +7,7 @@ import { elizaLogger } from "@elizaos/core";
 import { Media } from "@elizaos/core";
 import fs from "fs";
 import path from "path";
-import sharp from 'sharp';
-import * as fontkit from 'fontkit';
+import sharp, { FormatEnum } from 'sharp';
 import sizeOf from 'image-size';
 
 export const wait = (minTime: number = 1000, maxTime: number = 3000) => {
@@ -469,122 +468,110 @@ interface TextOverlayOptions {
   lineHeight?: number;
 }
 
-function createTextOverlayConfig(
-  text: string,
-  imageWidth: number,
-  imageHeight: number,
-  options: TextOverlayOptions,
-  rotation: number = 0
-) {
-  const {
-    textColor,
-    fontSize,
-    fontFamily,
-    padding
-  } = options;
-
-  const middleThirdStart = Math.floor(imageHeight / 3);
-  const middleThirdHeight = Math.floor(imageHeight / 3);
-
-  return {
-    text: {
-      text: `<span foreground="${textColor}">${text}</span>`,
-      font: fontFamily,
-      fontSize,
-      width: imageWidth - (padding * 2),
-      height: middleThirdHeight,
-      align: 'center',
-      rgba: true
-    },
-    top: middleThirdStart,
-    left: padding,
-    rotate: rotation // Add rotation
-  };
-}
-
 export async function createTextOverlay(
-  text: string,
-  backgroundPath: string,
-  fontPath: string,
-  options: TextOverlayOptions = {}
+    text: string,
+    backgroundPath: string,
+    options: TextOverlayOptions = {}
 ): Promise<Buffer> {
-  const {
-    textColor = '#FF69B4',
-    outputFormat = 'jpeg',
-    quality = 90,
-    fontSize = 168,
-    fontFamily = 'Arial',
-    padding = 40,
-    lineHeight = 1.5
-  } = options;
+    const {
+      textColor = '#FF69B4',
+      outputFormat = 'jpeg',
+      quality = 90,
+      fontSize = 60,
+      padding = 40,
+      lineHeight = 1.5,
+      fontFamily = 'Arial' // Add default font
+    } = options;
 
-  try {
-    const trimmedText = trimToWordLimit(text, 10);
-    const dimensions = sizeOf(backgroundPath);
-    const imageWidth = dimensions.width || 1080;
-    const imageHeight = dimensions.height || 1080;
+    try {
+      // Trim text to 15 words
+      const trimmedText = trimToWordLimit(text);
 
-    // Create text overlay config with all options including lineHeight
-    const textOverlay = createTextOverlayConfig(
-      trimmedText,
-      imageWidth,
-      imageHeight,
-      {
+      elizaLogger.log('REMX-TWITTER: Creating text overlay with text:', trimmedText, 'and background:', backgroundPath);
+      const background = await sharp(path.resolve(backgroundPath))
+      .png()
+      .toBuffer()
+        // rotate the composited image buffer 5 degrees and save as jpeg
+
+    // Create overlay on background
+    // const compositedImageBuffer = await createTextOverlayFromBuffer(
+    //   'This is a test',
+    //   background,
+    //   {
+    //     textColor: '#FF69B4',
+    //     outputFormat: 'jpeg',
+    //     fontFamily: 'Spray Letters',
+    //     quality: 90
+    //   }
+    // )
+
+
+      // Get background image dimensions from buffer
+      const metadata = await sharp(background).metadata();
+      const imageWidth = metadata.width || 1080;
+      const imageHeight = metadata.height || 1080;
+
+      // Calculate text position for middle third
+      const middleThirdStart = Math.floor(imageHeight / 3);
+      const middleThirdHeight = Math.floor(imageHeight / 3);
+      elizaLogger.log('REMX-TWITTER: Middle third start:', middleThirdStart, 'and height:', middleThirdHeight);
+
+      elizaLogger.log('REMX-TWITTER: Text overlay options:', {
         textColor,
+        outputFormat,
+        quality,
         fontSize,
-        fontFamily,
         padding,
         lineHeight
-      }
-    );
+      });
+      // Create text overlay options
+      const textOverlay = {
+        text: {
+          text: `<span foreground="${textColor}">${trimmedText}</span>`,
+          font: fontFamily,
+          fontSize,
+          width: imageWidth - (padding * 2),
+          height: middleThirdHeight,
+          align: 'center',
+          rgba: true
+        },
+        top: middleThirdStart,
+        left: padding
+      };
 
-    // Create a transparent background with the text overlay
-    const textBuffer = await sharp({
-      create: {
-        width: imageWidth,
-        height: imageHeight,
-        channels: 4,
-        background: { r: 0, g: 0, b: 0, alpha: 0 }
-      }
-    })
-    .composite([{
-      input: textOverlay,
-      blend: 'over'
-    }])
-    .rotate(15, { background: { r: 0, g: 0, b: 0, alpha: 0 }})
-    .toBuffer();
+      // Process buffer and add text in one pipeline
+      const result = await sharp(background)
+        .resize(imageWidth, imageHeight, {
+          fit: 'cover',
+          position: 'center'
+        })
+        .composite([{
+          input: textOverlay,
+          blend: 'over'
+        }])
+        .rotate(5)
+        .toFormat(outputFormat as keyof FormatEnum, { quality })
+        .toBuffer()
 
-    // Composite the rotated text onto the background
-    const result = await sharp(backgroundPath)
-      .resize(imageWidth, imageHeight, {
-        fit: 'cover',
-        position: 'center'
-      })
-      .composite([{
-        input: textBuffer,
-        blend: 'over',
-      }])
-      .toFormat(outputFormat as keyof sharp.FormatEnum, { quality });
+        const rotatedCompositedImageBuffer = await sharp(result)
+        .jpeg({ quality: 90 })
+        .rotate(-5)
+        .toBuffer()
 
-    // Save a copy of the image
-    const outputDir = path.dirname(backgroundPath);
-    const timestamp = Date.now();
-    await result.clone()
-      .toFile(path.join(outputDir, `tweet_${timestamp}.${outputFormat}`));
+      return rotatedCompositedImageBuffer
 
-    return result.toBuffer();
-
-  } catch (error) {
-    console.error('Error creating text overlay:', error);
-    throw error;
+    } catch (error) {
+      console.error('Error creating text overlay:', error);
+      throw error;
+    }
   }
-}
 
-function trimToWordLimit(text: string, wordLimit: number = 15): string {
-  const words = text.split(/\s+/);
-  if (words.length <= wordLimit) {
-    return text;
+  function trimToWordLimit(text: string, wordLimit: number = 15): string {
+    const words = text.split(/\s+/);
+    if (words.length <= wordLimit) {
+        return text;
+    }
+    return words.slice(0, wordLimit).join(' ') + '...';
   }
-  return words.slice(0, wordLimit).join(' ') + '...';
-}
+
 
