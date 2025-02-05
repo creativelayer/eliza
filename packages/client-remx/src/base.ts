@@ -294,19 +294,19 @@ export class ClientBase extends EventEmitter {
         }
     }
 
-    async commentMoment(momentId: string, text: string) {
+    async commentMoment(momentId: string, text: string, creatorId: string) {
         // if not dry run, create the comment
         if (this.config.REMX_DRY_RUN) {
             elizaLogger.log("[REMX] Dry run, would comment on moment", momentId, text)
         } else {
+
             const result = await this.graphQLRequest(CREATE_COMMENT, {
                 input: {
                     relationId: momentId,
                     relationType: 'Benefit',
-                    communityId: '', // TODO: get from drop
+                    communityId: creatorId,
                     accountId: this.config.REMX_ACCOUNT_ID,
                     content: text,
-                    profileId: this.profile.id,
                 }
             })
         }
@@ -368,18 +368,17 @@ export class ClientBase extends EventEmitter {
     async getRecentTips(): Promise<any> {
         // use the graphdb client to get the tip history
         const result = await this.graphDBClient.executeQuery(`
-           match (user:Account${this.config.REMX_ENV} {id: $fromAccount})-[:FROM]-(tip:Tip)
+           match (user:Account:${this.config.REMX_ENV} {id: $fromAccount})-[:FROM]-(tip:Tip)-[:TO]-(to:Account)
            where tip.created > datetime() - duration('P1D')
-           return tip.amount, tip.created order by tip.created desc
+           return tip.amount, tip.created, to.id order by tip.created desc
         `, {
             fromAccount: this.profile.id,
         })
 
-        console.log("Tip history", result)
-
         return result.map(tip => ({
-            amount: tip.get('amount'),
-            created: tip.get('created'),
+            amount: tip.get('tip.amount'),
+            created: tip.get('tip.created'),
+            toAccount: tip.get('to.id'),
         }))
     }
 
