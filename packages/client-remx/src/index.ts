@@ -1,7 +1,8 @@
 import { Client, elizaLogger, IAgentRuntime, ServiceType } from "@elizaos/core";
-import { ClientBase } from "./base.ts";
+import { ClientBase } from "./clientBase.ts";
 import { RemxConfig, validateRemxConfig } from "./environment.ts";
 import { MomentClient } from "./momentClient.ts";
+import { TipClient } from "./tipClient.ts";
 import { RemxImageDescriptionService } from "./services/image.ts"
 /**
  * A manager that orchestrates all specialized Remx logic
@@ -9,12 +10,14 @@ import { RemxImageDescriptionService } from "./services/image.ts"
 class RemxManager {
     client: ClientBase;
     momentClient: MomentClient;
+    tipClient: TipClient;
 
     constructor(runtime: IAgentRuntime, config: RemxConfig) {
         // Pass remxConfig to the base client
         this.client = new ClientBase(runtime, config);
 
         this.momentClient = new MomentClient(this.client, runtime);
+        this.tipClient = new TipClient(this.client, runtime);
 
     }
 }
@@ -38,7 +41,8 @@ export const RemxClientInterface: Client = {
         await manager.client.init();
 
         // Start the posting loop
-        await manager.momentClient.start();
+        // await manager.momentClient.start();
+        await manager.tipClient.start();
 
         return manager;
     },

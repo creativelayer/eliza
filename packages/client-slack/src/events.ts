@@ -40,7 +40,7 @@ export class EventHandler {
         // Handle messages
         this.events.on("message", async (event: any) => {
             try {
-                elizaLogger.debug("📨 [MESSAGE] Received message event:", {
+                elizaLogger.info("📨 [MESSAGE] Received message event:", {
                     type: event.type,
                     subtype: event.subtype,
                     user: event.user,

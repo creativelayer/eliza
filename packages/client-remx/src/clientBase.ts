@@ -21,8 +21,8 @@ import { Coinbase, Wallet, WalletData, hashMessage } from "@coinbase/coinbase-sd
 
 import { RemxConfig } from "./environment.ts";
 import { Moment } from './moment.ts';
-import { GraphQLClient, GraphQLConfig } from './graphQLClient'
-import { GraphDBClient, Neo4jAuth } from './graphDBClient'
+import { GraphQLClient, GraphQLConfig } from './graphQLClient.ts'
+import { GraphDBClient, Neo4jAuth } from './graphDBClient.ts'
 
 export function extractAnswer(text: string): string {
     const startIndex = text.indexOf("Answer: ") + 8;
@@ -30,7 +30,7 @@ export function extractAnswer(text: string): string {
     return text.slice(startIndex, endIndex);
 }
 
-type RemxProfile = {
+export type RemxProfile = {
     id: string;
     username: string;
     screenName: string;
@@ -47,25 +47,6 @@ import { GET_BALANCES } from './graphql/queries/getBalances.ts';
 import { GET_SUPPORTED_NETWORKS } from './graphql/queries/getSupportedNetworks.ts';
 import { GET_EXCHANGE_PRICES } from './graphql/queries/getExchangeRates.ts';
 import { TIP_ARTIST } from './graphql/mutations/tipArtist.ts';
-
-const momentActionTemplate = `# INSTRUCTIONS: Determine actions for {{agentName}} based on:
-{{bio}}
-
-Guidelines:
-- analyze the moment and decide if you want to like it or not based on the moment's content and the creator's bio
-
-Actions (respond only with tags):
-[LIKE] - Resonates with interests (9.9/10)
-[IGNORE] - Not relevant (10/10)
-
-Creator bio:
-{{creatorBio}}
-
-Moment:
-{{currentMoment}}
-
-# Respond with qualifying action tags only.
-Choose any combination of [LIKE] or [IGNORE] that are appropriate. Each action must be on its own line. Your response must only include the chosen actions.`;
 
 const MOMENTS_BATCH_SIZE = 5
 
@@ -353,6 +334,8 @@ export class ClientBase extends EventEmitter {
             elizaLogger.log("[REMX] Tip result", result.tipArtist)
         }
     }
+
+
 
     async graphQLRequest(query: string, variables: Record<string, any>): Promise<any> {
         const accessToken = await this.runtime.cacheManager.get(`${this.cacheKeyPrefix}/accessToken`) as string|null
