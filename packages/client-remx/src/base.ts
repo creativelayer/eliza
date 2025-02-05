@@ -42,6 +42,7 @@ import { GET_PROFILE } from './graphql/queries/getProfile.ts';
 import { GET_MOMENTS } from './graphql/queries/getMoments.ts';
 import { TOGGLE_REACTION } from './graphql/mutations/likeMoment.ts';
 import { CREATE_COMMENT } from './graphql/mutations/commentMoment.ts';
+import { FOLLOW_USER } from './graphql/mutations/followUser.ts';
 
 const momentActionTemplate = `# INSTRUCTIONS: Determine actions for {{agentName}} based on:
 {{bio}}
@@ -287,6 +288,17 @@ export class ClientBase extends EventEmitter {
                     content: text,
                     profileId: this.profile.id,
                 }
+            })
+        }
+    }
+
+    async followCreator(creatorId: string) {
+        // if not dry run, follow the creator
+        if (this.config.REMX_DRY_RUN) {
+            elizaLogger.log("[REMX] Dry run, would follow creator", creatorId)
+        } else {
+            const result = await this.graphQLRequest(FOLLOW_USER, {
+                id: creatorId,
             })
         }
     }

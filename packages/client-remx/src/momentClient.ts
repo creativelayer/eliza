@@ -34,6 +34,7 @@ interface IRemxClient {
     loadMoments(): Promise<Moment[]>
     likeMoment(momentId: string): Promise<void>
     commentMoment(momentId: string, text: string, profileId: string): Promise<void>
+    followCreator(creatorId: string): Promise<void>
 }
 
 export class MomentClient {
@@ -117,7 +118,9 @@ export class MomentClient {
             for (const moment of moments) {
                 const action = await this.momentAction(moment)
                 if (action.action === 'LIKE') {
-                    // await this.client.followUser(moment.creator.id)
+                    if (!moment.creator.isFollowing) {
+                        await this.client.followCreator(moment.creator.id)
+                    }
                     if (moment.reaction !== 'like') {
                         await this.client.likeMoment(moment.id)
                     }
