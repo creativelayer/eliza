@@ -20,6 +20,7 @@ TODO:
       - run hourly and check if the balance is sufficient for 100 tips of $1 in the next 24 hours.
       - if not, ask for more funds
       - if yes, do nothing
+- [ ] Avoid commenting on moments that have already been commented on. Perhaps if already liked by us then skip further actions
 - [ ] Set up a twitter client for the agent
 - [ ] Add support for videos
     - see https://cookbook.openai.com/examples/gpt_with_vision_for_video_understanding
