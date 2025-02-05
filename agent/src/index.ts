@@ -835,15 +835,15 @@ export async function initializeClients(
         if (simsaiClient) clients.simsai = simsaiClient;
     }
     
-    if (clientTypes.includes('remx')) {
+    if (clientTypes.includes(Clients.REMX)) {
         const remxClient = await RemxClientInterface.start(runtime);
         if (remxClient) clients.remx = remxClient;
     }
     elizaLogger.log("clientTypes", clientTypes);
-    if (clientTypes.includes("remx-twitter")) {
+    if (clientTypes.includes(Clients.REMX_TWITTER)) {
         const twitterClient = await RemxTwitterClientInterface.start(runtime);
         if (twitterClient) {
-            clients.twitter = twitterClient;
+            clients.remxtwitter = twitterClient;
             elizaLogger.log("remx-twitter twitterClient", twitterClient);
         }
     }
