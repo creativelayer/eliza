@@ -469,65 +469,7 @@ interface TextOverlayOptions {
   lineHeight?: number;
 }
 
-interface FontMetadata {
-  path: string;
-  familyName: string;
-  fontName: string;
-  font: any;
-}
 
-// Update cache to store font metadata
-const fontCache = new Map<string, FontMetadata>();
-
-async function getFontMetadata(fontPath: string): Promise<FontMetadata> {
-    const absoluteFontPath = path.resolve(fontPath);
-    const fontDir = path.dirname(absoluteFontPath);
-
-    // Check cache first
-    if (fontCache.has(absoluteFontPath)) {
-      return fontCache.get(absoluteFontPath)!;
-    }
-
-    // Load and analyze font file
-    console.log('Loading font from:', absoluteFontPath);
-    const fontBuffer = await fs.promises.readFile(absoluteFontPath);
-    const font = fontkit.create(fontBuffer);
-
-    // Create fonts.conf in the font directory
-    const fontsConfPath = path.join(fontDir, 'fonts.conf');
-    if (!fs.existsSync(fontsConfPath)) {
-      const fontsConf = `<?xml version="1.0"?>
-  <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-  <fontconfig>
-    <dir>${fontDir}</dir>
-    <match target="pattern">
-      <test qual="any" name="family">
-        <string>${font.familyName}</string>
-      </test>
-      <edit name="family" mode="assign" binding="same">
-        <string>${font.familyName}</string>
-      </edit>
-    </match>
-  </fontconfig>`;
-
-      await fs.promises.writeFile(fontsConfPath, fontsConf);
-      process.env.FONTCONFIG_PATH = fontsConfPath;
-
-      console.log('Created fonts.conf at:', fontsConfPath);
-    }
-
-    const metadata = {
-      path: absoluteFontPath,
-      familyName: font.familyName,
-      fontName: font.postscriptName || font.fullName,
-      font,
-      fontDir
-    };
-
-    // Cache the result
-    fontCache.set(absoluteFontPath, metadata);
-    return metadata;
-}
 
 
 export async function createTextOverlay(
@@ -541,6 +483,7 @@ export async function createTextOverlay(
     outputFormat = 'jpeg',
     quality = 90,
     fontSize = 60,
+    fontFamily = 'Arial',
     padding = 40,
     lineHeight = 1.5
   } = options;
@@ -548,9 +491,6 @@ export async function createTextOverlay(
   try {
     // Trim text to 15 words
     const trimmedText = trimToWordLimit(text);
-
-    // Get font metadata
-    const fontMeta = await getFontMetadata(fontPath);
 
     // Get background image dimensions
     const dimensions = sizeOf(backgroundPath);
@@ -569,18 +509,13 @@ export async function createTextOverlay(
       padding,
       lineHeight
     });
-    elizaLogger.info('Font metadata:', {
-      path: fontMeta.path,
-      familyName: fontMeta.familyName,
-      fontName: fontMeta.fontName
-    });
 
     // Create text overlay options
     const textOverlay = {
       text: {
         text: `<span foreground="${textColor}">${trimmedText}</span>`,
         // fontFile: path.resolve(fontMeta.path),
-        font: fontMeta.familyName,
+        font: fontFamily,
         fontSize,
         width: imageWidth - (padding * 2),
         height: middleThirdHeight,
