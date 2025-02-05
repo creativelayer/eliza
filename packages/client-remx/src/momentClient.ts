@@ -1,11 +1,10 @@
 import { composeContext, elizaLogger, generateText, IAgentRuntime, ModelClass, ServiceType, UUID, parseJSONObjectFromText } from "@elizaos/core"
-import { IImageDescriptionService } from "@elizaos/core"
 import { stringToUuid } from "@elizaos/core"
 import { getEmbeddingZeroVector } from "@elizaos/core"
 import { RemxConfig } from "./environment"
 import { Moment } from "./moment"
 import { MOMENT_EVALUATION_TEMPLATE } from "./templates/momentEvaluation"
-import { IRemxClient, IClientProfile } from "./types"
+import { IRemxClient } from "./types"
 
 interface IMoment {
     id: string
@@ -208,9 +207,8 @@ export class MomentClient {
         }
         const roomId = stringToUuid(moment.creator.id + "-" + this.runtime.agentId)
 
-        const imageDescriptionService = this.runtime.getService<IImageDescriptionService>(ServiceType.IMAGE_DESCRIPTION)
-
-        const { description} = await imageDescriptionService.describeImage(moment.assetFile)
+        // Use the client's image description service directly
+        const { description } = await this.client.imageDescriptionService.describeImage(moment.assetFile)
         console.log(description)
 
         const momentState = await this.runtime.composeState({
