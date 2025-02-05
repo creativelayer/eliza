@@ -165,7 +165,7 @@ export class ClientBase extends EventEmitter {
         elizaLogger.debug("[REMX] Remx expires at", remxExpiresAt);
 
         // cache manager supports expiry, so we can use that to expire the access token 1 minute before it actually expires
-        await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/accessToken`, remxAccessToken, { expires: remxExpiresAt.getTime() - 55 * 60 * 1000})
+        await this.runtime.cacheManager.set(`${this.cacheKeyPrefix}/accessToken`, remxAccessToken, { expires: remxExpiresAt.getTime() - 60 * 1000})
 
         this.profile = await this.getProfile(account.id)
         elizaLogger.debug("[REMX] Profile", this.profile)
