@@ -1,4 +1,5 @@
 import { RemxConfig } from "./environment"
+import { Moment } from "./moment"
 
 export interface IClientProfile {
     username: string

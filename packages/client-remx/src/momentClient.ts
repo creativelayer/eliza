@@ -92,6 +92,8 @@ export class MomentClient {
 
             const moments = await this.client.loadMoments()
 
+            console.log("Moments", moments)
+
             // Ensure user exists
             await this.runtime.ensureUserExists(
                 this.runtime.agentId,
