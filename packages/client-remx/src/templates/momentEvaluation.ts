@@ -28,12 +28,12 @@ Actions that can be taken on a moment are:
 - IGNORE
 
 About the creator:
-{creatorName}
-{creatorBio}
+name: {{creatorName}}
+bio: {{creatorBio}}
 
 Moment:
-IMAGE DESCRIPTION: {imageDescription}
-TITLE: {title}
-DESCRIPTION: {description}
-TAGS: {tags}
+IMAGE DESCRIPTION: {{imageDescription}}
+TITLE: {{title}}
+DESCRIPTION: {{description}}
+TAGS: {{tags}}
 `

@@ -1,4 +1,4 @@
-import { composeContext, elizaLogger, generateText, IAgentRuntime, ModelClass, ServiceType, UUID } from "@elizaos/core"
+import { composeContext, elizaLogger, generateText, IAgentRuntime, ModelClass, ServiceType, UUID, parseJSONObjectFromText } from "@elizaos/core"
 import { IImageDescriptionService } from "@elizaos/core"
 import { stringToUuid } from "@elizaos/core"
 import { getEmbeddingZeroVector } from "@elizaos/core"
@@ -107,7 +107,7 @@ export class MomentClient {
             const results: IMoment[] = []
 
             for (const moment of moments) {
-                const action = this.momentAction(moment)
+                const action = await this.momentAction(moment)
                 console.log('REMX Moment Action:', action)
             }
 
@@ -156,8 +156,9 @@ export class MomentClient {
         const roomId = stringToUuid(moment.creator.id + "-" + this.runtime.agentId)
 
         const imageDescriptionService = this.runtime.getService<IImageDescriptionService>(ServiceType.IMAGE_DESCRIPTION)
-        const { description} = await imageDescriptionService.describeImage(moment.assetFile)
 
+        const { description} = await imageDescriptionService.describeImage(moment.assetFile)
+        console.log(description)
 
         const momentState = await this.runtime.composeState({
             userId: this.runtime.agentId,
@@ -181,12 +182,12 @@ export class MomentClient {
         const momentResponse = await generateText({
             runtime: this.runtime,
             context: momentContext,
-            modelClass: ModelClass.LARGE,
+            modelClass: ModelClass.SMALL,
         });
 
-        console.log(momentResponse)
+        const momentResponseObject = parseJSONObjectFromText(momentResponse)
+        console.log(momentResponseObject)
 
         return momentResponse
-        return 'IGNORE'
     }
 }
