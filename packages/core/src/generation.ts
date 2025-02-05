@@ -369,6 +369,9 @@ export async function generateText({
 
     elizaLogger.log("Generating text...");
 
+    console.log("---- CONTEXT ----")
+    console.log(context)
+
     elizaLogger.info("Generating text with options:", {
         modelProvider: runtime.modelProvider,
         model: modelClass,

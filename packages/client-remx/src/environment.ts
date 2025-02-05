@@ -18,6 +18,7 @@ export const remxEnvSchema = z.object({
     COINBASE_API_KEY_NAME: z.string(),
     COINBASE_API_KEY_PRIVATE_KEY: z.string(),
     REMX_ENV: z.string(),
+    REMX_BASE_URL: z.string(),
 });
 
 export type RemxConfig = z.infer<typeof remxEnvSchema>;
@@ -50,13 +51,13 @@ export async function validateRemxConfig(
                 process.env.NEO4J_URI,
             NEO4J_USERNAME:
                 runtime.getSetting("NEO4J_USERNAME") ||
-                process.env.NEO4J_USERNAME,
+                process.env.NEO4J_USERNAME || 'neo4j',
             NEO4J_PASSWORD:
                 runtime.getSetting("NEO4J_PASSWORD") ||
                 process.env.NEO4J_PASSWORD,
             NEO4J_DATABASE:
                 runtime.getSetting("NEO4J_DATABASE") ||
-                process.env.NEO4J_DATABASE,
+                process.env.NEO4J_DATABASE || 'neo4j',
             GRAPHQL_URL:
                 runtime.getSetting("GRAPHQL_URL") ||
                 process.env.GRAPHQL_URL,
@@ -69,6 +70,9 @@ export async function validateRemxConfig(
             REMX_ENV:
                 runtime.getSetting("REMX_ENV") ||
                 process.env.REMX_ENV,
+            REMX_BASE_URL:
+                runtime.getSetting("REMX_BASE_URL") ||
+                process.env.REMX_BASE_URL,
         };
 
         return remxEnvSchema.parse(remxConfig);
