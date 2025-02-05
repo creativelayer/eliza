@@ -9,7 +9,6 @@ export interface IClientProfile {
 export interface IRemxClient {
     config: RemxConfig
     profile?: IClientProfile
-    imageDescriptionService: IImageDescriptionService
     init(): Promise<void>
     loadMoments(): Promise<Moment[]>
     likeMoment(momentId: string): Promise<void>

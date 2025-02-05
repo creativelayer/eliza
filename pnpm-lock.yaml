@@ -1094,6 +1094,9 @@ importers:
       '@elizaos/core':
         specifier: workspace:*
         version: link:../core
+      gif-frames:
+        specifier: 0.4.1
+        version: 0.4.1
       glob:
         specifier: 11.0.0
         version: 11.0.0

@@ -1,4 +1,4 @@
-import { composeContext, elizaLogger, generateText, IAgentRuntime, ModelClass, ServiceType, UUID, parseJSONObjectFromText } from "@elizaos/core"
+import { composeContext, elizaLogger, generateText, IAgentRuntime, ModelClass, ServiceType, UUID, parseJSONObjectFromText, IImageDescriptionService } from "@elizaos/core"
 import { stringToUuid } from "@elizaos/core"
 import { getEmbeddingZeroVector } from "@elizaos/core"
 import { Moment } from "./moment"
@@ -202,7 +202,8 @@ export class MomentClient {
         const roomId = stringToUuid(moment.creator.id + "-" + this.runtime.agentId)
 
         // Use the client's image description service directly
-        const { description } = await this.client.imageDescriptionService.describeImage(moment.assetFile)
+        const imageDescriptionService = this.runtime.getService<IImageDescriptionService>(ServiceType.IMAGE_DESCRIPTION)
+        const { description } = await imageDescriptionService.describeImage(moment.assetFile)
         console.log(description)
 
         const momentState = await this.runtime.composeState({

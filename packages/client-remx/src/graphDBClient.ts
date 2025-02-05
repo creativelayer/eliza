@@ -17,7 +17,6 @@ export class GraphDBClient {
       throw new Error('Missing required Neo4j credentials')
     }
 
-    console.log("Connecting to GraphDB", {NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD})
     try {
       this.driver = neo4j.driver(NEO4J_URI, neo4j.auth.basic(NEO4J_USERNAME, NEO4J_PASSWORD))
       // Verify connection immediately
