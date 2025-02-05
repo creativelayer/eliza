@@ -88,7 +88,13 @@ export async function validateRemxConfig(
             REMX_ASSET_URL:
                 runtime.getSetting("REMX_ASSET_URL") ||
                 process.env.REMX_ASSET_URL,
-                REMX_DAILY_TIP_LIMIT:
+                REMX_ASSET_BUCKET:
+                runtime.getSetting("REMX_ASSET_BUCKET") ||
+                process.env.REMX_ASSET_BUCKET,
+            IMAGE_SERVER_URL:
+                runtime.getSetting("IMAGE_SERVER_URL") ||
+                process.env.IMAGE_SERVER_URL,
+            REMX_DAILY_TIP_LIMIT:
                 parseInt(
                     runtime.getSetting("REMX_DAILY_TIP_LIMIT") ||
                     process.env.REMX_DAILY_TIP_LIMIT ||
