@@ -226,14 +226,7 @@ export class MomentClient {
 
         console.log('[REMX] Moment Context', momentContext)
 
-        const imageKey = btoa(JSON.stringify({
-                bucket: this.client.config.REMX_ASSET_BUCKET,
-                key: moment.assetFile,
-                edits:  {resize: { width: 512, fit:'cover', withoutEnlargement:true}, toFormat: 'jpeg'},
-            }
-        ))
-        const imageUrl = `${this.client.config.IMAGE_SERVER_URL}/${imageKey}`
-        const momentResponse = await imageDescriptionService.describeImageWithPrompt(momentContext, imageUrl)
+        const momentResponse = await imageDescriptionService.describeImageWithPrompt(momentContext, moment.imageUrl)
 
         const momentResponseObject = parseJSONObjectFromText(momentResponse) as IMomentAction
         console.log('[REMX] Moment Response Object', momentResponseObject)

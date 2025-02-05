@@ -18,6 +18,7 @@ export interface MomentData {
     creator: Creator
     saleDate: Date | null
     assetFile: string | null
+    imageUrl: string | null
     assetType: string | null
     reaction: string | null
 }
@@ -36,6 +37,7 @@ export class Moment {
     public creator: Creator
     public saleDate: Date | null
     public assetFile: string | null
+    public imageUrl: string | null
     public assetType: string | null
     public tags: string[]
     public reaction: string | null
@@ -54,6 +56,7 @@ export class Moment {
         }
         this.saleDate = null
         this.assetFile = null
+        this.imageUrl = null
         this.assetType = null
         this.tags = []
         this.reaction = null
@@ -75,6 +78,12 @@ export class Moment {
         }
         moment.saleDate = momentData.collection.auction.saleDate ? new Date(momentData.collection.auction.saleDate) : null
         moment.assetFile = `${config.REMX_ASSET_URL}/${momentData.collection.metadata?.assetFile}`
+        const imageKey = btoa(JSON.stringify({
+            bucket: config.REMX_ASSET_BUCKET,
+            key: momentData.collection.metadata?.assetFile,
+            edits:  {resize: { width: 512, fit:'cover', withoutEnlargement:true}, toFormat: 'jpeg'},
+        }))
+        moment.imageUrl = `${config.IMAGE_SERVER_URL}/${imageKey}`
         moment.assetType = momentData.collection.metadata?.assetType || null
         moment.tags = momentData.benefit.categories || []
         moment.reaction = momentData.benefit.reaction || null
@@ -131,6 +140,7 @@ export class Moment {
             creator: this.creator,
             saleDate: this.saleDate,
             assetFile: this.assetFile,
+            imageUrl: this.imageUrl,
             assetType: this.assetType,
             reaction: this.reaction
         }
