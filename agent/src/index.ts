@@ -14,16 +14,16 @@ import { TwitterClientInterface } from "@elizaos/client-twitter";
 import { DirectClient } from "@elizaos/client-direct";
 // import { PrimusAdapter } from "@elizaos/plugin-primus";
 
-import { FarcasterClientInterface } from "@elizaos/client-farcaster";
-import { OmniflixPlugin } from "@elizaos/plugin-omniflix";
-import { JeeterClientInterface } from "@elizaos/client-simsai";
-import { XmtpClientInterface } from "@elizaos/client-xmtp";
-import { agentKitPlugin } from "@elizaos/plugin-agentkit";
-import { gelatoPlugin } from "@elizaos/plugin-gelato";
-import { PrimusAdapter } from "@elizaos/plugin-primus";
-import { lightningPlugin } from "@elizaos/plugin-lightning";
-import { elizaCodeinPlugin, onchainJson } from "@elizaos/plugin-iq6900";
-import { dcapPlugin } from "@elizaos/plugin-dcap";
+// import { FarcasterClientInterface } from "@elizaos/client-farcaster";
+// import { OmniflixPlugin } from "@elizaos/plugin-omniflix";
+// import { JeeterClientInterface } from "@elizaos/client-simsai";
+// import { XmtpClientInterface } from "@elizaos/client-xmtp";
+// import { agentKitPlugin } from "@elizaos/plugin-agentkit";
+// import { gelatoPlugin } from "@elizaos/plugin-gelato";
+// import { PrimusAdapter } from "@elizaos/plugin-primus";
+// import { lightningPlugin } from "@elizaos/plugin-lightning";
+// import { elizaCodeinPlugin, onchainJson } from "@elizaos/plugin-iq6900";
+// import { dcapPlugin } from "@elizaos/plugin-dcap";
 /* REMX ADDITIONS */
 
 import { RemxClientInterface } from "@elizaos/client-remx";
@@ -124,8 +124,8 @@ import { fileURLToPath } from "url";
 import yargs from "yargs";
 // import {dominosPlugin} from "@elizaos/plugin-dominos";
 
-import { trikonPlugin } from "@elizaos/plugin-trikon";
-import arbitragePlugin from "@elizaos/plugin-arbitrage";
+// import { trikonPlugin } from "@elizaos/plugin-trikon";
+// import arbitragePlugin from "@elizaos/plugin-arbitrage";
 const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
 const __dirname = path.dirname(__filename); // get the name of the directory
 
@@ -996,19 +996,19 @@ export async function createAgent(
         character,
         // character.plugins are handled when clients are added
         plugins: [
-            parseBooleanFromText(getSecret(character, "BITMIND")) &&
-            getSecret(character, "BITMIND_API_TOKEN")
-                ? bittensorPlugin
-                : null,
-            parseBooleanFromText(
-                getSecret(character, "EMAIL_AUTOMATION_ENABLED")
-            )
-                ? emailAutomationPlugin
-                : null,
-            getSecret(character, "IQ_WALLET_ADDRESS") &&
-            getSecret(character, "IQSOlRPC")
-                ? elizaCodeinPlugin
-                : null,
+            // parseBooleanFromText(getSecret(character, "BITMIND")) &&
+            // getSecret(character, "BITMIND_API_TOKEN")
+            //     ? bittensorPlugin
+            //     : null,
+            // parseBooleanFromText(
+            //     getSecret(character, "EMAIL_AUTOMATION_ENABLED")
+            // )
+            //     ? emailAutomationPlugin
+            //     : null,
+            // getSecret(character, "IQ_WALLET_ADDRESS") &&
+            // getSecret(character, "IQSOlRPC")
+            //     ? elizaCodeinPlugin
+            //     : null,
             bootstrapPlugin,
             // getSecret(character, "CONFLUX_CORE_PRIVATE_KEY")
             //     ? confluxPlugin
@@ -1054,12 +1054,12 @@ export async function createAgent(
             // getSecret(character, "COINBASE_COMMERCE_KEY")
             //     ? coinbaseCommercePlugin
             //     : null,
-            getSecret(character, "FAL_API_KEY") ||
+            // getSecret(character, "FAL_API_KEY") ||
             getSecret(character, "OPENAI_API_KEY") ||
-            getSecret(character, "VENICE_API_KEY") ||
-            getSecret(character, "NVIDIA_API_KEY") ||
-            getSecret(character, "NINETEEN_AI_API_KEY") ||
-            getSecret(character, "HEURIST_API_KEY") ||
+            // getSecret(character, "VENICE_API_KEY") ||
+            // getSecret(character, "NVIDIA_API_KEY") ||
+            // getSecret(character, "NINETEEN_AI_API_KEY") ||
+            // getSecret(character, "HEURIST_API_KEY") ||
             getSecret(character, "LIVEPEER_GATEWAY_URL")
                 ? imageGenerationPlugin
                 : null,
@@ -1073,7 +1073,7 @@ export async function createAgent(
             //           advancedTradePlugin,
             //       ]
             //     : []),
-            ...(teeMode !== TEEMode.OFF && walletSecretSalt ? [teePlugin] : []),
+            // ...(teeMode !== TEEMode.OFF && walletSecretSalt ? [teePlugin] : []),
             // getSecret(character, "SGX") ? sgxPlugin : null,
             // getSecret(character, "ENABLE_TEE_LOG") &&
             // ((teeMode !== TEEMode.OFF && walletSecretSalt) ||
