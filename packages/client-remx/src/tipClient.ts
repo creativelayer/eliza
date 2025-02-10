@@ -8,7 +8,7 @@ interface IArtistToTip {
     totalTipsGiven: number
     totalTipsReceived: number
     tipPercentage: number
-    recentZanTips: number
+    totalZanTips: number
 }
 
 interface ITipCalculation {
@@ -25,10 +25,12 @@ match (artist)-[:TO]-(t:Tip)
 with artist, totalMoments, sum(t.amount) as totalTipsReceived
 match (artist)-[:FROM]-(t:Tip)
 with artist, totalMoments, totalTipsReceived, sum(t.amount) as totalTipsGiven
+optional match (artist)<-[:TO]-(t:Tip)-[:FROM]->(zan:Account {id: $agentId}) 
+with artist, totalMoments, totalTipsReceived, sum(t.amount) as totalTipsGiven, count(t) as totalZanTips
 optional match (artist)-[:TO]-(t:Tip)-[:FROM]-(zan:Account {id: $agentId}) where t.created >= datetime() - duration('P1D')
-with artist, totalMoments, totalTipsGiven, totalTipsReceived, round(100 * totalTipsGiven / totalTipsReceived) as tipPercentage, sum(t.amount) as recentZanTips
+with artist, totalMoments, totalTipsGiven, totalTipsReceived, round(100 * totalTipsGiven / totalTipsReceived) as tipPercentage, sum(t.amount) as recentZanTips, totalZanTips
 where recentZanTips = 0
-return artist.id as artistId, artist.slug as username, totalMoments, totalTipsGiven, totalTipsReceived, round(100 * totalTipsGiven / totalTipsReceived) as tipPercentage
+return artist.id as artistId, artist.slug as username, totalMoments, totalTipsGiven, totalTipsReceived, round(100 * totalTipsGiven / totalTipsReceived) as tipPercentage, totalZanTips
 order by totalMoments desc
 `
 
@@ -89,12 +91,13 @@ export class TipClient {
             totalTipsGiven: artist.get("totalTipsGiven"),
             totalTipsReceived: artist.get("totalTipsReceived"),
             tipPercentage: artist.get("tipPercentage"),
+            totalZanTips: artist.get("totalZanTips"),
         }))
     }
 
     private async calculateTipAmount(artist: IArtistToTip): Promise<ITipCalculation> {
         let amount = 0
-        if (artist.totalMoments < 10) {
+        if (artist.totalZanTips < 5) {
             amount = 1
         } else if (artist.tipPercentage < 10) {
             amount = 0
