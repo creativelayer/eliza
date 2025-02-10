@@ -150,15 +150,15 @@ export class MomentClient {
 
             if (!this.isDryRun) {
                 // Create the memory with additional context and include agent ID in memory ID
-                await this.runtime.messageManager.createMemory({
-                    id,
-                    userId: this.runtime.agentId,
-                    content,
-                    agentId: this.runtime.agentId,
-                    roomId,
-                    embedding: getEmbeddingZeroVector(),
-                    createdAt: new Date().getTime()
-                })
+                // await this.runtime.messageManager.createMemory({
+                //     id,
+                //     userId: this.runtime.agentId,
+                //     content,
+                //     agentId: this.runtime.agentId,
+                //     roomId,
+                //     embedding: getEmbeddingZeroVector(),
+                //     createdAt: new Date().getTime()
+                // })
             }
         } catch (error) {
             elizaLogger.error(`Error creating memory for moment with content: ${content}`, error)
