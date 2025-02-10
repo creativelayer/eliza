@@ -22,7 +22,7 @@ import { DirectClient } from "@elizaos/client-direct";
 // import { gelatoPlugin } from "@elizaos/plugin-gelato";
 // import { PrimusAdapter } from "@elizaos/plugin-primus";
 // import { lightningPlugin } from "@elizaos/plugin-lightning";
-// import { elizaCodeinPlugin, onchainJson } from "@elizaos/plugin-iq6900";
+import { elizaCodeinPlugin, onchainJson } from "@elizaos/plugin-iq6900";
 // import { dcapPlugin } from "@elizaos/plugin-dcap";
 /* REMX ADDITIONS */
 
