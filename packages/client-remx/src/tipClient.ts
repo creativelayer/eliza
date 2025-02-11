@@ -97,17 +97,16 @@ export class TipClient {
 
     private async calculateTipAmount(artist: IArtistToTip): Promise<ITipCalculation> {
         let amount = 0
-        if (artist.totalZanTips < 5) {
+
+        if (artist.tipPercentage < 10 && artist.totalZanTips < 5) {
             amount = 1
-        } else if (artist.tipPercentage < 10) {
-            amount = 0
-        } else if (artist.tipPercentage < 20) {
+        } else if (artist.tipPercentage >= 10 && artist.tipPercentage < 20) {
             amount = 1
-        } else if (artist.tipPercentage < 50) {
+        } else if (artist.tipPercentage >= 20 && artist.tipPercentage < 50) {
             amount = 2
-        } else if (artist.tipPercentage < 90) {
+        } else if (artist.tipPercentage >= 50 && artist.tipPercentage < 90) {
             amount = 4
-        } else {
+        } else if (artist.tipPercentage >= 90) {
             amount = 20
         }
 
