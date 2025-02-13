@@ -248,8 +248,8 @@ return sum(tip.amount) as totalTips, count(artist) as uniqueArtistsTipped`, {
         })
 
         return {
-            totalTips: results[0].get("totalTips").toNumber(),
-            uniqueArtistsTipped: results[0].get("uniqueArtistsTipped").toNumber()
+            totalTips: results[0].get("totalTips"),
+            uniqueArtistsTipped: results[0].get("uniqueArtistsTipped")
         }
     }    
 
