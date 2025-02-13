@@ -1328,7 +1328,7 @@ const startAgents = async () => {
     let characters = [defaultCharacter];
 
     if (process.env.IQ_WALLET_ADDRESS && process.env.IQSOlRPC) {
-        characters = await loadCharacterFromOnchain();
+        // characters = await loadCharacterFromOnchain();
     }
 
     const notOnchainJson = !onchainJson || onchainJson == "null";
