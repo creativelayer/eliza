@@ -20,4 +20,5 @@ export interface IRemxClient {
     tipCreator(toAccountId: string, amount: number, value: number): Promise<void>
     graphQLRequest(query: string, variables: Record<string, any>): Promise<any>
     graphDBQuery(query: string, variables: Record<string, any>): Promise<any>
+    sendSlackMessage(message: any): Promise<void>
 }

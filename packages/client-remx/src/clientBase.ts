@@ -438,6 +438,32 @@ export class ClientBase extends EventEmitter {
         }
     }
 
+    async sendSlackMessage(message: any): Promise<void> {
+        const webhookUrl = this.config.REMX_SLACK_WEBHOOK_URL
+        if (!webhookUrl) {
+            throw new Error('Slack webhook URL not available in agent environment')
+        }
+
+        try {
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(message)
+            })
+
+            if (!response.ok) {
+                throw new Error(`Failed to send message to Slack: ${response.statusText}`)
+            }
+
+            console.log(`Message sent to Slack successfully at ${new Date().toISOString()}`)
+        } catch (error) {
+            console.log(`Error sending message to Slack: ${error}`)
+            throw error
+        }
+    }
+
     async cleanup(): Promise<void> {
         // ... existing cleanup code if any ...
         await this.graphDBClient.close()

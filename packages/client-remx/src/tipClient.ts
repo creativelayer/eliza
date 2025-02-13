@@ -1,5 +1,7 @@
 import { elizaLogger, IAgentRuntime } from "@elizaos/core"
 import { IRemxClient } from "./types"
+import Table from 'table-layout'
+import schedule from 'node-schedule'
 
 interface IArtistToTip {
     id: string
@@ -14,6 +16,40 @@ interface IArtistToTip {
 interface ITipCalculation {
     amount: number
     value: number
+}
+
+interface ITippingSummary {
+    totalTips: number
+    uniqueArtistsTipped: number
+}
+
+interface ITip {
+    slug: string
+    tip: number
+}
+
+interface IReport {
+    date: string
+    totalTips: number
+    uniqueArtists: number
+    tipsGiven: ITip[]
+}
+
+interface ITippingSummary {
+    totalTips: number
+    uniqueArtistsTipped: number
+}
+
+interface ITip {
+    slug: string
+    tip: number
+}
+
+interface IReport {
+    date: string
+    totalTips: number
+    uniqueArtists: number
+    tipsGiven: ITip[]
 }
 
 const GET_ARTISTS_TO_TIP = `
@@ -50,10 +86,19 @@ export class TipClient {
         elizaLogger.log("Tip Processor Configuration:")
         elizaLogger.log(`- Dry Run Mode: ${this.isDryRun ? "enabled" : "disabled"}`)
         elizaLogger.log(`- Tip Process Interval: ${this.client.config.REMX_TIP_INTERVAL || "60"} minutes`)
+
+        // In your initialization code
+        this.scheduleDailyReport().catch(error => {
+            elizaLogger.error("Error scheduling daily report:", error)
+        })
     }
 
     async start(): Promise<void> {
         if (!this.client.profile) {
+
+        // run an immediate report
+        const report = await this.generateDailyReport()
+        await this.sendReportToSlack(report)
             await this.client.init()
         }
 
@@ -78,6 +123,10 @@ export class TipClient {
         processTipsLoop().catch(error => {
             elizaLogger.error("Fatal error in process tips loop:", error)
         })
+
+        // run an immediate report
+        const report = await this.generateDailyReport()
+        await this.sendReportToSlack(report)
     }
 
     private async getArtistsToTip(): Promise<IArtistToTip[]> {
@@ -189,5 +238,171 @@ export class TipClient {
 
     async stop(): Promise<void> {
         this.stopProcessing = true
+    }
+
+    private async getTippingSummary(): Promise<ITippingSummary> {
+        const results = await this.client.graphDBQuery(`match (zan:Account {id: $agentId})-[:FROM]-(tip:Tip)-[:TO]-(artist:Account) 
+where tip.created > datetime() - duration('P1D') 
+return sum(tip.amount) as totalTips, count(artist) as uniqueArtistsTipped`, {
+            agentId: this.client.profile?.id
+        })
+
+        return {
+            totalTips: results[0].get("totalTips").toNumber(),
+            uniqueArtistsTipped: results[0].get("uniqueArtistsTipped").toNumber()
+        }
+    }    
+
+    private async getTipsGiven(): Promise<ITip[]> {
+        const results = await this.client.graphDBQuery(`match (zan:Account {id: $agentId})-[:FROM]-(tip:Tip)-[:TO]-(artist:Account) 
+where tip.created > datetime() - duration('P1D') 
+return artist.slug as slug, sum(tip.amount) as tip order by tip desc`, {
+            agentId: this.client.profile?.id
+        })
+
+        return results.map((result: any) => ({
+            slug: result.get("slug"),
+            tip: result.get("tip")
+        }))
+    }
+
+    private async generateDailyReport(): Promise<IReport> {
+        const tippingSummary = await this.getTippingSummary()
+        const tipsGiven = await this.getTipsGiven()
+        return {
+            date: new Date().toISOString(),
+            totalTips: tippingSummary.totalTips,
+            uniqueArtists: tippingSummary.uniqueArtistsTipped,
+            tipsGiven: tipsGiven
+        }
+    }
+
+    private async formatSlackReport(report: IReport): Promise<any> {
+
+        const balance = await this.client.getBalance()
+        const exchangeRate = await this.client.getExchangeRate()
+        const balanceUSD = balance * exchangeRate
+
+        // Format the date for display
+        const reportDate = new Date().toLocaleString('en-US', {
+            dateStyle: 'full',
+            timeStyle: 'short'
+        })
+
+        // Create table of tip details
+        const table = new Table(report.tipsGiven, {
+            columns: [
+                { name: "artistName" },
+                { name: "tipAmount" },
+            ]
+        })
+        const tableOutput = table.toString()
+
+        // Construct Slack blocks
+        const blocks = [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": "🤖 Daily Tipping Report",
+                    "emoji": true
+                }
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "plain_text",
+                        "text": `Generated on ${reportDate} by ${this.client.profile?.username}`,
+                        "emoji": true
+                    }
+                ]
+            },
+            {
+                "type": "divider"
+            },
+            {
+                type: "section",
+                text: {
+                    type: "mrkdwn",
+                    text: `*Current Balance:* ${balance.toFixed(4)} ETH ($${balanceUSD.toFixed(2)})`
+                }
+            },
+    {
+                "type": "section",
+                "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": `*Total Tips:*\n$${report.totalTips.toFixed(2)}`
+                    },
+                    {
+                        "type": "mrkdwn",
+                        "text": `*Artists Tipped:*\n${report.uniqueArtists}`
+                    }
+                ]
+            },
+            {
+                "type": "divider"
+            },
+            {
+                "type": "rich_text",
+                "elements": [
+                    {
+                        "type": "rich_text_section",
+                        "elements": [
+                            {
+                                "type": "text",
+                                "text": "Detailed Tip Activity:"
+                            }
+                        ]
+                    },
+                    {
+                        "type": "rich_text_preformatted",
+                        "elements": [
+                            {
+                                "type": "text",
+                                "text": tableOutput
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+
+        return {
+            text: "🤖 Daily Tipping Report",
+            username: this.client.profile?.username,
+            icon_emoji: ":robot_face:",
+            channel: "#zan-tipping-reports",            
+            blocks
+        }
+    }
+
+    private async sendReportToSlack(report: IReport): Promise<void> {
+        try {
+            const formattedReport = await this.formatSlackReport(report)
+            await this.client.sendSlackMessage(formattedReport)
+            console.log(`Report sent to Slack successfully at ${new Date().toISOString()}`)
+        } catch (error) {
+            console.log(`Error sending report to Slack: ${error}`)
+            throw error
+        }
+    }
+
+    public async scheduleDailyReport(): Promise<void> {
+        
+        const that = this
+        // Schedule for 9:00 AM every day
+        console.log(`Scheduling daily report`)
+        schedule.scheduleJob('0 9 * * *', async () => {
+            try {
+                console.log(`Generating daily report at ${new Date().toISOString()}`)
+                const report = await that.generateDailyReport()
+                await that.sendReportToSlack(report)
+                console.log(`Daily report generated and sent at ${new Date().toISOString()}`)
+            } catch (error) {
+                console.log(`Error generating daily report: ${error}`)
+            }
+        })
     }
 }

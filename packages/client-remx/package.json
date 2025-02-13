@@ -19,19 +19,21 @@
         "dist"
     ],
     "dependencies": {
-        "@elizaos/core": "workspace:*",
-        "glob": "11.0.0",
-        "zod": "3.23.8",
         "@aws-sdk/client-cognito-identity-provider": "^3.723.0",
         "@coinbase/coinbase-sdk": "^0.13.0",
+        "@elizaos/core": "workspace:*",
+        "gif-frames": "0.4.1",
+        "glob": "11.0.0",
         "graphql-request": "^7.1.2",
         "neo4j-driver": "^5.27.0",
-        "gif-frames": "0.4.1"
+        "node-schedule": "^2.1.1",
+        "table-layout": "^4.1.1",
+        "zod": "3.23.8"
     },
     "devDependencies": {
+        "@vitest/coverage-v8": "1.1.3",
         "tsup": "8.3.5",
-        "vitest": "1.1.3",
-        "@vitest/coverage-v8": "1.1.3"
+        "vitest": "1.1.3"
     },
     "scripts": {
         "build": "tsup --format esm --dts",
