@@ -1331,11 +1331,11 @@ const startAgents = async () => {
         // characters = await loadCharacterFromOnchain();
     }
 
-    const notOnchainJson = !onchainJson || onchainJson == "null";
+    // const notOnchainJson = !onchainJson || onchainJson == "null";
 
-    if ((notOnchainJson && charactersArg) || hasValidRemoteUrls()) {
+    // if ((notOnchainJson && charactersArg) || hasValidRemoteUrls()) {
         characters = await loadCharacters(charactersArg);
-    }
+    // }
 
     // Normalize characters for injectable plugins
     // characters = await Promise.all(characters.map(normalizeCharacter));
