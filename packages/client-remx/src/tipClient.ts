@@ -62,7 +62,7 @@ with artist, totalMoments, sum(t.amount) as totalTipsReceived
 match (artist)-[:FROM]-(t:Tip)
 with artist, totalMoments, totalTipsReceived, sum(t.amount) as totalTipsGiven
 optional match (artist)<-[:TO]-(t:Tip)-[:FROM]->(zan:Account {id: $agentId}) 
-with artist, totalMoments, totalTipsReceived, sum(t.amount) as totalTipsGiven, count(t) as totalZanTips
+with artist, totalMoments, totalTipsReceived, totalTipsGiven, count(t) as totalZanTips
 optional match (artist)-[:TO]-(t:Tip)-[:FROM]-(zan:Account {id: $agentId}) where t.created >= datetime() - duration('P1D')
 with artist, totalMoments, totalTipsGiven, totalTipsReceived, round(100 * totalTipsGiven / totalTipsReceived) as tipPercentage, sum(t.amount) as recentZanTips, totalZanTips
 where recentZanTips = 0
