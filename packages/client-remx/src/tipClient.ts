@@ -14,8 +14,10 @@ interface IArtistToTip {
 }
 
 interface ITipCalculation {
-    amount: number
-    value: number
+    regularAmount: number
+    regularValue: number
+    highValueAmount: number
+    highValueValue: number
 }
 
 interface ITippingSummary {
@@ -70,6 +72,12 @@ return artist.id as artistId, artist.slug as username, totalMoments, totalTipsGi
 order by totalMoments desc
 `
 
+const GET_WEEKLY_HIGH_VALUE_TIPS = `
+match (zan:Account {id: $agentId})-[:FROM]-(t:Tip)-[:TO]-(artist:Account {id: $artistId})
+where t.amount >= 20 and t.created >= datetime() - duration('P7D')
+return count(t) as tipCount, sum(t.amount) as totalAmount
+`
+
 export class TipClient {
     private runtime: IAgentRuntime
     private client: IRemxClient
@@ -86,6 +94,7 @@ export class TipClient {
         elizaLogger.log("Tip Processor Configuration:")
         elizaLogger.log(`- Dry Run Mode: ${this.isDryRun ? "enabled" : "disabled"}`)
         elizaLogger.log(`- Tip Process Interval: ${this.client.config.REMX_TIP_INTERVAL || "60"} minutes`)
+        elizaLogger.log(`- Weekly High-Value Tip Budget: $${this.client.config.REMX_WEEKLY_HIGH_VALUE_BUDGET || "200"}`)
 
         // In your initialization code
         this.scheduleDailyReport().catch(error => {
@@ -145,57 +154,89 @@ export class TipClient {
     }
 
     private async calculateTipAmount(artist: IArtistToTip): Promise<ITipCalculation> {
-        let amount = 0
+        let regularAmount = 0
+        let highValueAmount = 0
+        const exchangeRate = await this.client.getExchangeRate()
 
-        if (artist.tipPercentage < 10 && artist.totalZanTips < 5) {
-            amount = 1
-        } else if (artist.tipPercentage >= 10 && artist.tipPercentage < 20) {
-            amount = 1
-        } else if (artist.tipPercentage >= 20 && artist.tipPercentage < 50) {
-            amount = 2
+        if (artist.tipPercentage >= 90) {
+            regularAmount = 5
+            // Check if artist already received a high-value tip this week
+            const weeklyTips = await this.checkWeeklyHighValueTips(artist.id)
+            highValueAmount = weeklyTips.tipCount === 0 ? 20 : 0
         } else if (artist.tipPercentage >= 50 && artist.tipPercentage < 90) {
-            amount = 4
-        } else if (artist.tipPercentage >= 90) {
-            amount = 20
+            regularAmount = 4
+        } else if (artist.tipPercentage >= 20 && artist.tipPercentage < 50) {
+            regularAmount = 2
+        } else if (artist.tipPercentage >= 10 && artist.tipPercentage < 20) {
+            regularAmount = 1
+        } else if (artist.tipPercentage < 10 && artist.totalZanTips < 5) {
+            regularAmount = 1
         }
 
-        const exchangeRate = await this.client.getExchangeRate()
         return {
-            amount,
-            value: amount / exchangeRate
+            regularAmount,
+            regularValue: regularAmount / exchangeRate,
+            highValueAmount,
+            highValueValue: highValueAmount / exchangeRate
         }
     }
 
-    private async tipDecision(artist: IArtistToTip, tipCalc: ITipCalculation): Promise<boolean> {
+    private async checkWeeklyHighValueTips(artistId: string): Promise<{tipCount: number, totalAmount: number}> {
+        const results = await this.client.graphDBQuery(GET_WEEKLY_HIGH_VALUE_TIPS, {
+            agentId: this.client.profile?.id,
+            artistId
+        })
+        
+        return {
+            tipCount: results[0].get("tipCount"),
+            totalAmount: results[0].get("totalAmount") || 0
+        }
+    }
+
+    private async tipDecision(artist: IArtistToTip, tipCalc: ITipCalculation): Promise<{shouldTip: boolean, useHighValue: boolean}> {
         const balance = await this.client.getBalance()
         const recentTip = await this.client.getRecentTips(artist.id)
         const recentTipsAmount = recentTip.reduce((acc, tip) => acc + tip.amount, 0)
 
-        console.log(`Tip Decision for ${artist.username}
+        // First check if we can do a high-value tip
+        let useHighValue = false
+        if (tipCalc.highValueAmount > 0) {
+            // Check if we're within weekly high-value budget
+            const allWeeklyTips = await this.client.graphDBQuery(`
+                match (zan:Account {id: $agentId})-[:FROM]-(t:Tip)-[:TO]-(artist:Account)
+                where t.amount >= 20 and t.created >= datetime() - duration('P7D')
+                return sum(t.amount) as totalAmount
+            `, { agentId: this.client.profile?.id })
+
+            const weeklyHighValueTotal = allWeeklyTips[0].get("totalAmount") || 0
+            const weeklyBudget = this.client.config.REMX_WEEKLY_HIGH_VALUE_BUDGET
+
+            useHighValue = weeklyHighValueTotal + tipCalc.highValueAmount <= weeklyBudget
+        }
+
+        const tipAmount = useHighValue ? tipCalc.highValueValue : tipCalc.regularValue
+        const dollarAmount = useHighValue ? tipCalc.highValueAmount : tipCalc.regularAmount
+
+        console.log(`Tip Decision for ${artist.username}:
  - Agent balance: ${balance}
  - Recent tips: ${recentTipsAmount}
  - Tip percentage: ${artist.tipPercentage}
- - Tip amount and value: $${tipCalc.amount} : ${tipCalc.value} ETH`)
+ - Using high value tip: ${useHighValue}
+ - Tip amount and value: $${dollarAmount} : ${tipAmount} ETH`)
 
         // can't tip if we are low on funds
-        if (balance < tipCalc.value * 2) {
+        if (balance < tipAmount * 1.5) {
             elizaLogger.log(`Not tipping ${artist.username} because balance is too low`)
-            return false
+            return { shouldTip: false, useHighValue }
         }
 
-        // always tip the top artists, regardless of daily limit
-        if (artist.tipPercentage >= 90) {
-            elizaLogger.log(`Tipping ${artist.username} because they are a top tipper`)
-            return true
-        }
-
-        // can't tip if we have tipped too much in the last 24 hours
-        if (recentTipsAmount >= this.client.config.REMX_DAILY_TIP_LIMIT) {
+        // Check daily limit only for regular tips
+        if (!useHighValue && recentTipsAmount >= this.client.config.REMX_DAILY_TIP_LIMIT) {
             elizaLogger.log(`Not tipping ${artist.username} because we've reached our daily limit`)
-            return false
+            return { shouldTip: false, useHighValue }
         }
 
-        return true
+        return { shouldTip: true, useHighValue }
     }
 
     async processTips(): Promise<IArtistToTip[] | null> {
@@ -212,14 +253,18 @@ export class TipClient {
             for (const artist of artists) {
                 try {
                     const tipCalc = await this.calculateTipAmount(artist)
+                    const decision = await this.tipDecision(artist, tipCalc)
 
-                    if (tipCalc.amount > 0 && await this.tipDecision(artist, tipCalc)) {
+                    if (decision.shouldTip) {
+                        const amount = decision.useHighValue ? tipCalc.highValueAmount : tipCalc.regularAmount
+                        const value = decision.useHighValue ? tipCalc.highValueValue : tipCalc.regularValue
+
                         if (!this.isDryRun) {
-                            await this.client.tipCreator(artist.id, tipCalc.amount, tipCalc.value)
+                            await this.client.tipCreator(artist.id, amount, value)
                             results.push(artist)
-                            elizaLogger.log(`Tipped ${artist.username} $${tipCalc.amount} (${tipCalc.value} ETH)`)
+                            elizaLogger.log(`Tipped ${artist.username} $${amount} (${value} ETH)`)
                         } else {
-                            elizaLogger.log(`[DRY RUN] Tipped ${artist.username} $${tipCalc.amount} (${tipCalc.value} ETH)`)
+                            elizaLogger.log(`[DRY RUN] Tipped ${artist.username} $${amount} (${value} ETH)`)
                         }
                     }
                 } catch (error) {

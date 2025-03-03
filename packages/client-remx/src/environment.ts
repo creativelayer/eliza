@@ -24,6 +24,7 @@ export const remxEnvSchema = z.object({
     REMX_ASSET_BUCKET: z.string(),
     REMX_PROCESS_INTERVAL: z.number(),
     REMX_DAILY_TIP_LIMIT: z.number(),
+    REMX_WEEKLY_HIGH_VALUE_BUDGET: z.number().optional(),
     REMX_SLACK_WEBHOOK_URL: z.string(),
     REMX_AGENT_ID: z.string(),
     REMX_TIP_INTERVAL: z.number().optional(),
@@ -100,7 +101,13 @@ export async function validateRemxConfig(
                 parseInt(
                     runtime.getSetting("REMX_DAILY_TIP_LIMIT") ||
                     process.env.REMX_DAILY_TIP_LIMIT ||
-                    "100"
+                    "70"
+                ),
+            REMX_WEEKLY_HIGH_VALUE_BUDGET:
+                parseInt(
+                    runtime.getSetting("REMX_WEEKLY_HIGH_VALUE_BUDGET") ||
+                    process.env.REMX_WEEKLY_HIGH_VALUE_BUDGET ||
+                    "200"
                 ),
             REMX_SLACK_WEBHOOK_URL:
                 runtime.getSetting("REMX_SLACK_WEBHOOK_URL") ||
