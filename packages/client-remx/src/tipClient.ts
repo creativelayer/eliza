@@ -291,7 +291,12 @@ where tip.created > datetime() - duration('P1D')
 return sum(tip.amount) as totalTips, count(artist) as uniqueArtistsTipped`, {
             agentId: this.client.profile?.id
         })
-
+        if (results.length === 0) {
+            return {
+                totalTips: 0,
+                uniqueArtistsTipped: 0
+            }
+        }
         return {
             totalTips: results[0].get("totalTips"),
             uniqueArtistsTipped: results[0].get("uniqueArtistsTipped")
