@@ -333,7 +333,7 @@ return artist.slug as slug, sum(tip.amount) as tip order by tip desc`, {
                 "fields": [
                     {
                         "type": "mrkdwn",
-                        "text": `*Total Tips:*\n$${report.totalTips.toFixed(2)}`
+                        "text": `*Total Tips:*\n$${report.totalTips?.toFixed(2)}`
                     },
                     {
                         "type": "mrkdwn",
