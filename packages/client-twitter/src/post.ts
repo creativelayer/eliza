@@ -283,11 +283,11 @@ export class TwitterPostClient {
             }
         };
 
-        if (this.client.twitterConfig.POST_IMMEDIATELY) {
-            await this.generateNewTweet();
-        }
+        // if (this.client.twitterConfig.POST_IMMEDIATELY) {
+        //     await this.generateNewTweet();
+        // }
 
-        generateNewTweetLoop();
+        // generateNewTweetLoop();
         elizaLogger.log("Tweet generation loop started");
 
         if (this.client.twitterConfig.ENABLE_ACTION_PROCESSING) {
