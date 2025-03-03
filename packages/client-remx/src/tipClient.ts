@@ -298,8 +298,8 @@ return sum(tip.amount) as totalTips, count(artist) as uniqueArtistsTipped`, {
             }
         }
         return {
-            totalTips: results[0].get("totalTips"),
-            uniqueArtistsTipped: results[0].get("uniqueArtistsTipped")
+            totalTips: results[0].get("totalTips").toNumber ? results[0].get("totalTips").toNumber() : results[0].get("totalTips"),
+            uniqueArtistsTipped: results[0].get("uniqueArtistsTipped") ? results[0].get("uniqueArtistsTipped").toNumber() : results[0].get("uniqueArtistsTipped")
         }
     }    
 
@@ -328,6 +328,8 @@ return artist.slug as slug, sum(tip.amount) as tip order by tip desc`, {
     }
 
     private async formatSlackReport(report: IReport): Promise<any> {
+
+        console.log('formatting report', report)
 
         const balance = await this.client.getBalance()
         const exchangeRate = await this.client.getExchangeRate()
