@@ -101,13 +101,13 @@ export async function validateRemxConfig(
                 parseInt(
                     runtime.getSetting("REMX_DAILY_TIP_LIMIT") ||
                     process.env.REMX_DAILY_TIP_LIMIT ||
-                    "70"
+                    "100"
                 ),
             REMX_WEEKLY_HIGH_VALUE_BUDGET:
                 parseInt(
                     runtime.getSetting("REMX_WEEKLY_HIGH_VALUE_BUDGET") ||
                     process.env.REMX_WEEKLY_HIGH_VALUE_BUDGET ||
-                    "200"
+                    "0"
                 ),
             REMX_SLACK_WEBHOOK_URL:
                 runtime.getSetting("REMX_SLACK_WEBHOOK_URL") ||
