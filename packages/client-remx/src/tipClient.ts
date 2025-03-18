@@ -284,19 +284,23 @@ export class TipClient {
             for (const artist of artists) {
                 try {
                     const tipCalc = await this.calculateTipAmount(artist)
-                    const decision = await this.tipDecision(artist, tipCalc)
+                    if (tipCalc.regularAmount > 0) {
+                        const decision = await this.tipDecision(artist, tipCalc)
 
-                    if (decision.shouldTip) {
-                        const amount = tipCalc.regularAmount
-                        const value = tipCalc.regularValue
+                        if (decision.shouldTip) {
+                            const amount = tipCalc.regularAmount
+                            const value = tipCalc.regularValue
 
-                        if (!this.isDryRun) {
-                            await this.client.tipCreator(artist.id, amount, value)
-                            results.push(artist)
-                            elizaLogger.log(`Tipped ${artist.username} $${amount} (${value} ETH)`)
-                        } else {
-                            elizaLogger.log(`[DRY RUN] Tipped ${artist.username} $${amount} (${value} ETH)`)
+                            if (!this.isDryRun) {
+                                await this.client.tipCreator(artist.id, amount, value)
+                                results.push(artist)
+                                elizaLogger.log(`Tipped ${artist.username} $${amount} (${value} ETH)`)
+                            } else {
+                                elizaLogger.log(`[DRY RUN] Tipped ${artist.username} $${amount} (${value} ETH)`)
+                            }
                         }
+                    } else {
+                        elizaLogger.log(`Not tipping ${artist.username} because tip amount is 0`)
                     }
                 } catch (error) {
                     elizaLogger.error(`Error processing tip for artist ${artist.username}:`, error)
