@@ -7,12 +7,10 @@ interface IArtistToTip {
     id: string
     username: string
     totalMoments: number
-    totalTipsGiven: number
     totalTipsReceived: number
     tipPercentage: number
     totalZanTips: number
     uniqueAccountsTipped: number
-    totalTipsGivenCount: number
     recentTipsGiven: number
     recentTipsGivenCount: number
     recentUniqueAccountsTipped: number
@@ -167,12 +165,10 @@ export class TipClient {
             id: artist.get("artistId"),
             username: artist.get("username"),
             totalMoments: artist.get("totalMoments"),
-            totalTipsGiven: artist.get("totalTipsGiven"),
             totalTipsReceived: artist.get("totalTipsReceived"),
             tipPercentage: artist.get("tipPercentage"),
             totalZanTips: artist.get("totalZanTips"),
             uniqueAccountsTipped: artist.get("uniqueAccountsTipped"),
-            totalTipsGivenCount: artist.get("totalTipsGivenCount"),
             recentTipsGiven: artist.get("recentTipsGiven"),
             recentTipsGivenCount: artist.get("recentTipsGivenCount"),
             recentUniqueAccountsTipped: artist.get("recentUniqueAccountsTipped"),
