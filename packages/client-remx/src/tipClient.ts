@@ -8,7 +8,6 @@ interface IArtistToTip {
     username: string
     totalMoments: number
     totalTipsReceived: number
-    tipPercentage: number
     totalZanTips: number
     uniqueAccountsTipped: number
     recentTipsGiven: number
@@ -166,7 +165,6 @@ export class TipClient {
             username: artist.get("username"),
             totalMoments: artist.get("totalMoments"),
             totalTipsReceived: artist.get("totalTipsReceived"),
-            tipPercentage: artist.get("tipPercentage"),
             totalZanTips: artist.get("totalZanTips"),
             uniqueAccountsTipped: artist.get("uniqueAccountsTipped"),
             recentTipsGiven: artist.get("recentTipsGiven"),
@@ -248,7 +246,6 @@ export class TipClient {
         console.log(`Tip Decision for ${artist.username}:
  - Agent balance: ${balance}
  - Recent tips: ${recentTipsAmount}
- - Tip percentage: ${artist.tipPercentage}
  - Tip amount and value: $${tipCalc.regularAmount} : ${tipCalc.regularValue} ETH`)
 
         // can't tip if we are low on funds
