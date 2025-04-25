@@ -72,11 +72,17 @@ with artist, totalMoments, totalTipsReceived,
      count(DISTINCT recentOther) as recentUniqueAccountsTipped,
      round(100.0 * count(DISTINCT recentOther) / count(recentTip)) as recentUniqueRatio
 
+// Check for total tips from Zan
+optional match (artist)<-[:TO]-(t:Tip)-[:FROM]->(zan:Account {id: $agentId}) 
+with artist, totalMoments, totalTipsReceived, 
+     recentTipsGiven, recentTipsGivenCount, recentUniqueAccountsTipped, recentUniqueRatio,
+     sum(t.amount) as totalZanTips
+
 // Check for tips from Zan in last day
 optional match (artist)<-[:TO]-(zanTip:Tip)-[:FROM]->(zan:Account {id: $agentId}) 
 where zanTip.created >= datetime() - duration('P1D')
 with artist, totalMoments, totalTipsReceived, 
-     recentTipsGiven, recentTipsGivenCount, recentUniqueAccountsTipped, recentUniqueRatio,
+     recentTipsGiven, recentTipsGivenCount, recentUniqueAccountsTipped, recentUniqueRatio, totalZanTips,
      sum(zanTip.amount) as recentZanTips
 
 where recentZanTips = 0 or recentZanTips is null
@@ -87,7 +93,8 @@ return artist.id as artistId,
        recentTipsGivenCount,
        totalTipsReceived,
        recentUniqueAccountsTipped,
-       recentUniqueRatio
+       recentUniqueRatio,
+       totalZanTips
 order by totalMoments desc
 `
 
