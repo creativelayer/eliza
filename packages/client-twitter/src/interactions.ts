@@ -1,23 +1,23 @@
-import { SearchMode, type Tweet } from "agent-twitter-client";
+import { SearchMode, Tweet } from "agent-twitter-client";
 import {
     composeContext,
     generateMessageResponse,
     generateShouldRespond,
     messageCompletionFooter,
     shouldRespondFooter,
-    type Content,
-    type HandlerCallback,
-    type IAgentRuntime,
-    type Memory,
+    Content,
+    HandlerCallback,
+    IAgentRuntime,
+    Memory,
     ModelClass,
-    type State,
+    State,
     stringToUuid,
     elizaLogger,
     getEmbeddingZeroVector,
-    type IImageDescriptionService,
+    IImageDescriptionService,
     ServiceType
 } from "@elizaos/core";
-import type { ClientBase } from "./base";
+import { ClientBase } from "./base.ts";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 
 export const twitterMessageHandlerTemplate =
@@ -80,6 +80,10 @@ For other users:
 IMPORTANT:
 - {{agentName}} (aka @{{twitterUserName}}) is particularly sensitive about being annoying, so if there is any doubt, it is better to IGNORE than to RESPOND.
 - For users not in the priority list, {{agentName}} (@{{twitterUserName}}) should err on the side of IGNORE rather than RESPOND if in doubt.
+- {{agentName}} should limit the number of replies to the same user in the same thread to 2-3 replies max.
+- {{agentName}} should not conduct long conversations with other users.
+- {{agentName}} should avoid replying to users that appear to be AI agents or bots.
+- {{agentName}} knows that the following are AI agents: @LMNLAgent, @AskPerplexity, @AndyBNBAgent, @MindAIAGENT, @IcilyDeliv49476, @duckunfiltered, @xDora_ai, @SaitoshiAgent, @BasedReplyBot, @V1PunksGuide, @Klaus_Agent, @SimulacrumAI, @Heket_Ai, @InfiniteAgentAI, @CharacterXAI, @HinagiAI, @BellaAI_agent, @dreamgirl_agent, @seraphagent, @STai_agent, @Evan_AI_Agent, @AMetaXbt, @BullsharkAgent, @AgentApolloAI, @DrPepeai_Agent, @chckdotai, @athena_tball, @XyroAI, @funtransferAI, @TrumpAi, @laser_ai_agent, @BasedBrett, @ait_agent, @MemeifyAi_Agent, @longevity_agent, @aiGCR_agent, @AI_JNI, @AiAgentLima, @dexcheck_agent, @NitaAiAgent, @dreamboybot, @agent_inj, @AgentKigu, @Macintoshi_, @_Q5U4EX7YY2E9N, @TheFUDIBot
 
 Recent Posts:
 {{recentPosts}}
@@ -160,7 +164,7 @@ export class TwitterInteractionClient {
                             const validTweets = userTweets.filter((tweet) => {
                                 const isUnprocessed =
                                     !this.client.lastCheckedTweetId ||
-                                    Number.parseInt(tweet.id) >
+                                    parseInt(tweet.id) >
                                         this.client.lastCheckedTweetId;
                                 const isRecent =
                                     Date.now() - tweet.timestamp * 1000 <
@@ -277,10 +281,7 @@ export class TwitterInteractionClient {
                     );
 
                     const message = {
-                        content: { 
-                            text: tweet.text,
-                            imageUrls: tweet.photos?.map(photo => photo.url) || []
-                        },
+                        content: { text: tweet.text },
                         agentId: this.runtime.agentId,
                         userId: userIdUUID,
                         roomId,
@@ -315,9 +316,9 @@ export class TwitterInteractionClient {
         message: Memory;
         thread: Tweet[];
     }) {
-        // Only skip if tweet is from self AND not from a target user
-        if (tweet.userId === this.client.profile.id &&
-            !this.client.twitterConfig.TWITTER_TARGET_USERS.includes(tweet.username)) {
+        if (tweet.userId === this.client.profile.id) {
+            // console.log("skipping tweet from bot itself", tweet.id);
+            // Skip processing if the tweet is from the bot itself
             return;
         }
 
@@ -334,6 +335,7 @@ export class TwitterInteractionClient {
         };
         const currentPost = formatTweet(tweet);
 
+        elizaLogger.debug("Thread: ", thread);
         const formattedConversation = thread
             .map(
                 (tweet) => `@${tweet.username} (${new Date(
@@ -348,9 +350,13 @@ export class TwitterInteractionClient {
             )
             .join("\n\n");
 
+        elizaLogger.debug("formattedConversation: ", formattedConversation);
+
         const imageDescriptionsArray = [];
         try{
+            elizaLogger.debug('Getting images');
             for (const photo of tweet.photos) {
+                elizaLogger.debug(photo.url);
                 const description = await this.runtime
                     .getService<IImageDescriptionService>(
                         ServiceType.IMAGE_DESCRIPTION
@@ -392,7 +398,6 @@ export class TwitterInteractionClient {
                 content: {
                     text: tweet.text,
                     url: tweet.permanentUrl,
-                    imageUrls: tweet.photos?.map(photo => photo.url) || [],
                     inReplyTo: tweet.inReplyToStatusId
                         ? stringToUuid(
                               tweet.inReplyToStatusId +
@@ -434,31 +439,14 @@ export class TwitterInteractionClient {
         }
 
         const context = composeContext({
-            state: {
-                ...state,
-                // Convert actionNames array to string
-                actionNames: Array.isArray(state.actionNames)
-                    ? state.actionNames.join(', ')
-                    : state.actionNames || '',
-                actions: Array.isArray(state.actions)
-                    ? state.actions.join('\n')
-                    : state.actions || '',
-                // Ensure character examples are included
-                characterPostExamples: this.runtime.character.messageExamples
-                    ? this.runtime.character.messageExamples
-                        .map(example =>
-                            example.map(msg =>
-                                `${msg.user}: ${msg.content.text}${msg.content.action ? ` [Action: ${msg.content.action}]` : ''}`
-                            ).join('\n')
-                        ).join('\n\n')
-                    : '',
-            },
+            state,
             template:
                 this.runtime.character.templates
                     ?.twitterMessageHandlerTemplate ||
                 this.runtime.character?.templates?.messageHandlerTemplate ||
                 twitterMessageHandlerTemplate,
         });
+        elizaLogger.debug("Interactions prompt:\n" + context);
 
         const response = await generateMessageResponse({
             runtime: this.runtime,
@@ -483,15 +471,14 @@ export class TwitterInteractionClient {
             } else {
                 try {
                     const callback: HandlerCallback = async (
-                        response: Content,
-                        tweetId?: string
+                        response: Content
                     ) => {
                         const memories = await sendTweet(
                             this.client,
                             response,
                             message.roomId,
                             this.client.twitterConfig.TWITTER_USERNAME,
-                            tweetId || tweet.id
+                            tweet.id
                         );
                         return memories;
                     };
@@ -515,16 +502,12 @@ export class TwitterInteractionClient {
                             responseMessage
                         );
                     }
-                    const responseTweetId =
-                    responseMessages[responseMessages.length - 1]?.content
-                        ?.tweetId;
+
                     await this.runtime.processActions(
                         message,
                         responseMessages,
                         state,
-                        (response: Content) => {
-                            return callback(response, responseTweetId);
-                        }
+                        callback
                     );
 
                     const responseInfo = `Context:\n\n${context}\n\nSelected Post: ${tweet.id} - ${tweet.username}: ${tweet.text}\nAgent's Output:\n${response.text}`;
@@ -543,12 +526,12 @@ export class TwitterInteractionClient {
 
     async buildConversationThread(
         tweet: Tweet,
-        maxReplies = 10
+        maxReplies: number = 10
     ): Promise<Tweet[]> {
         const thread: Tweet[] = [];
         const visited: Set<string> = new Set();
 
-        async function processThread(currentTweet: Tweet, depth = 0) {
+        async function processThread(currentTweet: Tweet, depth: number = 0) {
             elizaLogger.log("Processing tweet:", {
                 id: currentTweet.id,
                 inReplyToStatusId: currentTweet.inReplyToStatusId,
@@ -592,7 +575,6 @@ export class TwitterInteractionClient {
                         text: currentTweet.text,
                         source: "twitter",
                         url: currentTweet.permanentUrl,
-                        imageUrls: currentTweet.photos?.map(photo => photo.url) || [],
                         inReplyTo: currentTweet.inReplyToStatusId
                             ? stringToUuid(
                                   currentTweet.inReplyToStatusId +
@@ -618,6 +600,12 @@ export class TwitterInteractionClient {
 
             visited.add(currentTweet.id);
             thread.unshift(currentTweet);
+
+            elizaLogger.debug("Current thread state:", {
+                length: thread.length,
+                currentDepth: depth,
+                tweetId: currentTweet.id,
+            });
 
             if (currentTweet.inReplyToStatusId) {
                 elizaLogger.log(
@@ -657,6 +645,14 @@ export class TwitterInteractionClient {
 
         // Need to bind this context for the inner function
         await processThread.bind(this)(tweet, 0);
+
+        elizaLogger.debug("Final thread built:", {
+            totalTweets: thread.length,
+            tweetIds: thread.map((t) => ({
+                id: t.id,
+                text: t.text?.slice(0, 50),
+            })),
+        });
 
         return thread;
     }
